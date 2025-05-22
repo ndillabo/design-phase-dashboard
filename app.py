@@ -52,10 +52,15 @@ df['Construction Document End'] = df["Permit Set Delivery Date"]
 
 # --- Identify Active Projects (Compare DATE only) ---
 today = dt.datetime.today().date()
+
+# Remove rows missing date fields to avoid errors
+df["Start Date"] = pd.to_datetime(df["Programming Start Date"], errors='coerce')
+df["End Date"] = pd.to_datetime(df["Permit Set Delivery Date"], errors='coerce')
+
 df["Is Active"] = (
-    df["Programming Start Date"].dt.date <= today
+    df["Start Date"].dt.date <= today
 ) & (
-    df["Permit Set Delivery Date"].dt.date >= today
+    df["End Date"].dt.date >= today
 )
 
 # --- Sort: Active projects first, then by start date
@@ -63,7 +68,7 @@ df = df.sort_values(by=["Is Active", "Programming Start Date"], ascending=[False
 
 # --- ASU Brand Colors ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
-colors = ['#8C1D40', '#FFC627', '#5C6670', '#78BE20']  # ASU Maroon, Gold, Dark Gray, Green
+colors = ['#8C1D40', '#FFC627', '#5C6670', '#78BE20']
 phase_colors = dict(zip(phases, colors))
 
 # --- Plotting ---
@@ -93,7 +98,7 @@ for i, row in df.iterrows():
 asu_maroon = '#8C1D40'
 ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2)
 
-# --- Configure Axes ---
+# --- Axes & Labels ---
 ax.set_yticks(range(len(df)))
 ax.set_yticklabels(df["Project Name"].fillna("Unnamed Project"), ha='right')
 ax.invert_yaxis()
