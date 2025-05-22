@@ -50,13 +50,16 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-# --- Combine Project # and Project Name for Y-axis ---
+# --- Combine labels: "Project Name (Project #)" without decimals ---
 df["Y Label"] = df.apply(
-    lambda row: f"[{row['Project #']}] {row['Project Name']}" if pd.notnull(row["Project #"]) else row["Project Name"],
+    lambda row: f"{row['Project Name']} ({int(row['Project #'])})"
+    if pd.notnull(row["Project #"]) and str(row["Project #"]).replace('.', '', 1).isdigit()
+    else f"{row['Project Name']} ({row['Project #']})"
+    if pd.notnull(row["Project #"]) else row["Project Name"],
     axis=1
 )
 
-# --- Sort by Project # numerically or alphanumerically ---
+# --- Sort by Project # as string ---
 df["Project # Sort"] = df["Project #"].astype(str)
 df = df.sort_values(by="Project # Sort", ascending=True).reset_index(drop=True)
 
