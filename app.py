@@ -31,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Now with month detail and alternating year backgrounds, trimmed view window, and cleaner X-axis.")
+st.caption("Scrollable timeline with sticky Y-axis and expanded monthly spacing.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -76,8 +76,8 @@ latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting ---
-fig, ax = plt.subplots(figsize=(18, len(df) * 0.6))
+# --- Plotting (Extra wide for scrollability) ---
+fig, ax = plt.subplots(figsize=(28, len(df) * 0.6))
 today = dt.datetime.today().date()
 
 # --- Bars ---
@@ -120,8 +120,8 @@ ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right')
 ax.invert_yaxis()
 ax.tick_params(labelsize=10)
 
-# --- X-axis: show every 3 months to reduce clutter ---
-ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+# --- X-axis: full month ticks, no skipping ---
+ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
 
@@ -135,4 +135,9 @@ legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
 ax.legend(handles=legend_elements, loc="upper right")
 
 plt.tight_layout()
-st.pyplot(fig)
+
+# --- Scrollable output container ---
+with st.container():
+    st.markdown("<div style='overflow-x: auto;'>", unsafe_allow_html=True)
+    st.pyplot(fig, use_container_width=False)
+    st.markdown("</div>", unsafe_allow_html=True)
