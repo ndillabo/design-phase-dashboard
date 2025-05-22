@@ -29,7 +29,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Now with official ASU colors. Auto-refreshes on load or when clicking the refresh button.")
+st.caption("Sorted by active projects first. Auto-refreshes on load or when clicking the refresh button.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -49,6 +49,13 @@ df['Programming End'] = df["Schematic Design Start Date"]
 df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
+
+# --- Identify Active Projects (Today is between Programming Start and Permit Delivery)
+today = dt.datetime.today()
+df["Is Active"] = (df["Programming Start Date"] <= today) & (df["Permit Set Delivery Date"] >= today)
+
+# --- Sort: Active first, then past
+df = df.sort_values(by=["Is Active", "Programming Start Date"], ascending=[False, True]).reset_index(drop=True)
 
 # --- ASU Color Theme ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
@@ -80,13 +87,12 @@ for i, row in df.iterrows():
 
 # --- Add Today Line (ASU Maroon) ---
 asu_maroon = '#8C1D40'
-today = dt.datetime.today()
 ax.axvline(today, color=asu_maroon, linewidth=2)
 
-# --- Configure Axes for alignment ---
+# --- Configure Axes ---
 ax.set_yticks(range(len(df)))
 ax.set_yticklabels(df["Project Name"].fillna("Unnamed Project"), ha='right')
-ax.invert_yaxis()  # Natural top-to-bottom order
+ax.invert_yaxis()
 ax.tick_params(labelsize=10)
 ax.set_xlabel("Date")
 ax.set_title("Project Design Phases Timeline", fontsize=18, color=asu_maroon)
