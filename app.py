@@ -48,7 +48,7 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-# --- Phase Setup ---
+# --- Phase Colors ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
 colors = {
     'Programming': '#d62728',              # Red
@@ -60,14 +60,18 @@ colors = {
 # --- Filters ---
 with st.sidebar:
     st.header("🔍 Filter Projects")
-    managers = df["Design Manager"].dropna().unique().tolist()
-    selected_managers = st.multiselect("Design Manager", options=managers, default=managers)
 
-    project_names = df["Project Name"].dropna().unique().tolist()
-    selected_projects = st.multiselect("Project Name", options=project_names, default=project_names)
+    if "Design Manager Name" in df.columns:
+        managers = df["Design Manager Name"].dropna().unique().tolist()
+        selected_managers = st.multiselect("Design Manager Name", options=managers, default=managers)
+        df = df[df["Design Manager Name"].isin(selected_managers)]
 
-# Apply filters
-df = df[df["Design Manager"].isin(selected_managers) & df["Project Name"].isin(selected_projects)].reset_index(drop=True)
+    if "Project Name" in df.columns:
+        project_names = df["Project Name"].dropna().unique().tolist()
+        selected_projects = st.multiselect("Project Name", options=project_names, default=project_names)
+        df = df[df["Project Name"].isin(selected_projects)]
+
+df = df.reset_index(drop=True)
 
 # --- Plotly Gantt-style Chart ---
 fig = go.Figure()
@@ -75,7 +79,7 @@ today = dt.datetime.today()
 asu_maroon = '#891D40'
 
 for i, row in df.iterrows():
-    y = row["Project Name"] or f"Project {i+1}"
+    y = row.get("Project Name", f"Project {i+1}")
     phases_data = [
         ("Programming", row["Programming Start Date"], row["Programming End"]),
         ("Schematic Design", row["Schematic Design Start Date"], row["Schematic Design End"]),
@@ -100,7 +104,6 @@ fig.add_shape(
     x0=today, x1=today,
     y0=-0.5, y1=len(df)-0.5,
     line=dict(color=asu_maroon, width=2),
-    name="Today"
 )
 
 # --- Layout ---
@@ -111,10 +114,6 @@ fig.update_layout(
     yaxis=dict(autorange="reversed"),
     legend_title="Phase",
     height=40 + len(df) * 40,
-    shapes=[dict(
-        type="line", x0=today, x1=today, y0=-0.5, y1=len(df)-0.5,
-        line=dict(color=asu_maroon, width=2)
-    )],
     margin=dict(l=150, r=50, t=50, b=50)
 )
 
