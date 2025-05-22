@@ -31,7 +31,17 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Enhanced for readability: larger fonts, bigger bars, scrollable view.")
+st.caption("Enhanced for readability: larger fonts, bigger bars, scrollable timeline.")
+
+# --- Add Project Button ---
+st.markdown("---")
+st.markdown("### Want to add a new project to the dashboard?")
+st.markdown("Use the form below — updates will appear after clicking **Refresh Data**.")
+st.markdown(
+    "[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)",
+    unsafe_allow_html=True
+)
+st.markdown("---")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -76,7 +86,7 @@ latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting (Larger + sharper)
+# --- Plotting ---
 fig, ax = plt.subplots(figsize=(32, len(df) * 0.8), dpi=120)
 today = dt.datetime.today().date()
 
@@ -104,7 +114,7 @@ for i, row in df.iterrows():
                 color=colors[j],
                 edgecolor='black',
                 zorder=3,
-                height=0.6  # Increased bar thickness
+                height=0.6
             )
 
 # --- Alternating Year Backgrounds ---
@@ -126,7 +136,7 @@ ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize
 ax.invert_yaxis()
 ax.tick_params(labelsize=14)
 
-# --- X-axis: full monthly ticks
+# --- X-axis: full month ticks
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
@@ -142,7 +152,7 @@ ax.legend(handles=legend_elements, loc="upper right", fontsize=12)
 
 plt.tight_layout()
 
-# --- Scrollable container ---
+# --- Scrollable output container ---
 with st.container():
     st.markdown("<div style='overflow-x: auto;'>", unsafe_allow_html=True)
     st.pyplot(fig, use_container_width=False)
