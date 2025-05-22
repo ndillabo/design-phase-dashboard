@@ -5,6 +5,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import datetime as dt
 import smartsheet
+import matplotlib.dates as mdates
 
 # --- Smartsheet Setup ---
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
@@ -29,7 +30,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Sorted by Project # (ascending). Auto-refreshes on load or when clicking the refresh button.")
+st.caption("Now with month-level timeline detail. Auto-refreshes on load or when clicking the refresh button.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -101,6 +102,12 @@ ax.set_yticks(range(len(df)))
 ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right')
 ax.invert_yaxis()
 ax.tick_params(labelsize=10)
+
+# --- X-axis: Month + Year Formatting ---
+ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+fig.autofmt_xdate(rotation=45)
+
 ax.set_xlabel("Date")
 ax.set_title("Project Design Phases Timeline", fontsize=18, color=asu_maroon)
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
