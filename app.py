@@ -31,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Scrollable timeline with horizontal guide lines and sticky Y-axis.")
+st.caption("Improved readability: larger project names + scrollable timeline.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -80,7 +80,7 @@ x_max = latest + relativedelta(months=5)
 fig, ax = plt.subplots(figsize=(28, len(df) * 0.6))
 today = dt.datetime.today().date()
 
-# --- Horizontal lines at each project row ---
+# --- Horizontal guide lines ---
 for y in range(len(df)):
     ax.axhline(y=y, color='lightgrey', linestyle='--', linewidth=0.5, zorder=0, alpha=0.2)
 
@@ -121,11 +121,11 @@ ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon,
 # --- Configure Axes ---
 ax.set_xlim(x_min, x_max)
 ax.set_yticks(range(len(df)))
-ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right')
+ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize=14)
 ax.invert_yaxis()
 ax.tick_params(labelsize=10)
 
-# --- X-axis: full month ticks, no skipping ---
+# --- X-axis: full month ticks ---
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
