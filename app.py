@@ -31,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Trimmed view: 1 month before first project, 5 months after latest. Includes alternating year bands.")
+st.caption("Now with month detail and alternating year backgrounds, trimmed view window, and cleaner X-axis.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -120,8 +120,8 @@ ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right')
 ax.invert_yaxis()
 ax.tick_params(labelsize=10)
 
-# --- X-axis: Month-Year Ticks ---
-ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+# --- X-axis: show every 3 months to reduce clutter ---
+ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
 
