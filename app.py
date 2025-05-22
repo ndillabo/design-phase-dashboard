@@ -6,6 +6,7 @@ from matplotlib.lines import Line2D
 import datetime as dt
 import smartsheet
 import matplotlib.dates as mdates
+from dateutil.relativedelta import relativedelta
 
 # --- Smartsheet Setup ---
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
@@ -30,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Includes month ticks and alternating background years for readability.")
+st.caption("Trimmed view: 1 month before first project, 5 months after latest. Includes alternating year bands.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -69,11 +70,17 @@ phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction
 colors = ['#8C1D40', '#FFC627', '#5C6670', '#78BE20']
 phase_colors = dict(zip(phases, colors))
 
+# --- Timeline window ---
+earliest = df[["Programming Start Date", "Schematic Design Start Date", "Design Development Start Date", "Construction Document Start Date"]].min().min()
+latest = df[["Permit Set Delivery Date"]].max().max()
+x_min = earliest - relativedelta(months=1)
+x_max = latest + relativedelta(months=5)
+
 # --- Plotting ---
 fig, ax = plt.subplots(figsize=(18, len(df) * 0.6))
 today = dt.datetime.today().date()
 
-# --- Draw the bars
+# --- Bars ---
 for i, row in df.iterrows():
     y_pos = i
     starts = [
@@ -94,25 +101,26 @@ for i, row in df.iterrows():
                 edgecolor='black'
             )
 
-# --- Add alternating year backgrounds ---
-years = range(df["Programming Start Date"].dt.year.min() - 1, df["Permit Set Delivery Date"].dt.year.max() + 2)
+# --- Alternating Year Backgrounds ---
+years = range(x_min.year - 1, x_max.year + 1)
 for year in years:
     if year % 2 == 1:
         start = dt.datetime(year, 1, 1)
         end = dt.datetime(year + 1, 1, 1)
         ax.axvspan(start, end, color='grey', alpha=0.1, zorder=0)
 
-# --- Add Today Line (ASU Maroon) ---
+# --- Today Line ---
 asu_maroon = '#8C1D40'
 ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2)
 
 # --- Configure Axes ---
+ax.set_xlim(x_min, x_max)
 ax.set_yticks(range(len(df)))
 ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right')
 ax.invert_yaxis()
 ax.tick_params(labelsize=10)
 
-# --- X-axis month/year formatting ---
+# --- X-axis: Month-Year Ticks ---
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
