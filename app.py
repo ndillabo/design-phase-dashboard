@@ -1,10 +1,8 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
 import datetime as dt
 import smartsheet
+import plotly.graph_objects as go
 
 # --- Smartsheet Setup ---
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
@@ -29,7 +27,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Auto-refreshes on load or when clicking the refresh button.")
+st.caption("Filter, hover, and download data. Auto-refreshes every hour.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -50,49 +48,84 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-# --- Colors and labels ---
+# --- Phase Setup ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
-colors = ['#d62728', '#1f77b4', '#ff7f0e', '#2ca02c']  # Red, Blue, Orange, Green
-phase_colors = dict(zip(phases, colors))
+colors = {
+    'Programming': '#d62728',              # Red
+    'Schematic Design': '#1f77b4',         # Blue
+    'Design Development': '#ff7f0e',       # Orange
+    'Construction Documents': '#2ca02c'    # Green
+}
 
-# --- Plotting ---
-fig, ax = plt.subplots(figsize=(18, len(df) * 0.6))
+# --- Filters ---
+with st.sidebar:
+    st.header("🔍 Filter Projects")
+    managers = df["Design Manager"].dropna().unique().tolist()
+    selected_managers = st.multiselect("Design Manager", options=managers, default=managers)
+
+    project_names = df["Project Name"].dropna().unique().tolist()
+    selected_projects = st.multiselect("Project Name", options=project_names, default=project_names)
+
+# Apply filters
+df = df[df["Design Manager"].isin(selected_managers) & df["Project Name"].isin(selected_projects)].reset_index(drop=True)
+
+# --- Plotly Gantt-style Chart ---
+fig = go.Figure()
+today = dt.datetime.today()
+asu_maroon = '#891D40'
 
 for i, row in df.iterrows():
-    y_pos = i
-    starts = [
-        row['Programming Start Date'], row['Schematic Design Start Date'],
-        row['Design Development Start Date'], row['Construction Document Start Date']
+    y = row["Project Name"] or f"Project {i+1}"
+    phases_data = [
+        ("Programming", row["Programming Start Date"], row["Programming End"]),
+        ("Schematic Design", row["Schematic Design Start Date"], row["Schematic Design End"]),
+        ("Design Development", row["Design Development Start Date"], row["Design Development End"]),
+        ("Construction Documents", row["Construction Document Start Date"], row["Construction Document End"])
     ]
-    ends = [
-        row['Programming End'], row['Schematic Design End'],
-        row['Design Development End'], row['Construction Document End']
-    ]
-    for j in range(4):
-        if pd.notnull(starts[j]) and pd.notnull(ends[j]):
-            ax.barh(
-                y=y_pos,
-                width=(ends[j] - starts[j]).days,
-                left=starts[j],
-                color=colors[j],
-                edgecolor='black'
-            )
+    for phase_name, start, end in phases_data:
+        if pd.notnull(start) and pd.notnull(end):
+            fig.add_trace(go.Bar(
+                x=[(end - start).days],
+                y=[y],
+                base=start,
+                orientation='h',
+                marker=dict(color=colors[phase_name]),
+                name=phase_name,
+                hovertemplate=f"<b>{phase_name}</b><br>Start: {start.date()}<br>End: {end.date()}<br>Duration: {(end - start).days} days<br>Project: {y}<extra></extra>"
+            ))
 
-# --- Add today line (ASU Maroon) ---
-asu_maroon = '#891D40'
-today = dt.datetime.today()
-ax.axvline(today, color=asu_maroon, linewidth=2)
+# --- Add Today Line ---
+fig.add_shape(
+    type="line",
+    x0=today, x1=today,
+    y0=-0.5, y1=len(df)-0.5,
+    line=dict(color=asu_maroon, width=2),
+    name="Today"
+)
 
-# --- Configure axes ---
-ax.set_yticks(range(len(df)))
-ax.set_yticklabels(df["Project Name"].fillna("Unnamed Project"))
-ax.set_xlabel("Date")
-ax.set_title("Project Design Phases Timeline")
-ax.grid(True, axis='x', linestyle='--', alpha=0.5)
+# --- Layout ---
+fig.update_layout(
+    barmode='stack',
+    title="Project Design Phases Timeline",
+    xaxis_title="Date",
+    yaxis=dict(autorange="reversed"),
+    legend_title="Phase",
+    height=40 + len(df) * 40,
+    shapes=[dict(
+        type="line", x0=today, x1=today, y0=-0.5, y1=len(df)-0.5,
+        line=dict(color=asu_maroon, width=2)
+    )],
+    margin=dict(l=150, r=50, t=50, b=50)
+)
 
-# --- Legend with thin ASU maroon line for Today ---
-legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
-legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
-ax.legend(handles=legend_elements, loc="upper right")
+st.plotly_chart(fig, use_container_width=True)
 
-st.pyplot(fig)
+# --- Export Button ---
+st.markdown("### 📤 Export Filtered Data")
+csv = df.to_csv(index=False)
+st.download_button(
+    label="Download CSV",
+    data=csv,
+    file_name="filtered_projects.csv",
+    mime="text/csv"
+)
