@@ -31,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Scrollable timeline with sticky Y-axis and expanded monthly spacing.")
+st.caption("Scrollable timeline with horizontal guide lines and sticky Y-axis.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -80,6 +80,10 @@ x_max = latest + relativedelta(months=5)
 fig, ax = plt.subplots(figsize=(28, len(df) * 0.6))
 today = dt.datetime.today().date()
 
+# --- Horizontal lines at each project row ---
+for y in range(len(df)):
+    ax.axhline(y=y, color='lightgrey', linestyle='--', linewidth=0.5, zorder=0, alpha=0.2)
+
 # --- Bars ---
 for i, row in df.iterrows():
     y_pos = i
@@ -98,7 +102,8 @@ for i, row in df.iterrows():
                 width=(ends[j] - starts[j]).days,
                 left=starts[j],
                 color=colors[j],
-                edgecolor='black'
+                edgecolor='black',
+                zorder=3
             )
 
 # --- Alternating Year Backgrounds ---
@@ -111,7 +116,7 @@ for year in years:
 
 # --- Today Line ---
 asu_maroon = '#8C1D40'
-ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2)
+ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2, zorder=4)
 
 # --- Configure Axes ---
 ax.set_xlim(x_min, x_max)
