@@ -73,10 +73,13 @@ with st.sidebar:
 
 df = df.reset_index(drop=True)
 
-# --- Plotly Gantt-style Chart ---
+# --- Plotly Chart ---
 fig = go.Figure()
 today = dt.datetime.today()
 asu_maroon = '#891D40'
+
+# Track which phases have already been added for legend control
+legend_added = {phase: False for phase in phases}
 
 for i, row in df.iterrows():
     y = row.get("Project Name", f"Project {i+1}")
@@ -94,17 +97,30 @@ for i, row in df.iterrows():
                 base=start,
                 orientation='h',
                 marker=dict(color=colors[phase_name]),
-                name=phase_name,
+                name=phase_name if not legend_added[phase_name] else None,
+                showlegend=not legend_added[phase_name],
                 hovertemplate=f"<b>{phase_name}</b><br>Start: {start.date()}<br>End: {end.date()}<br>Duration: {(end - start).days} days<br>Project: {y}<extra></extra>"
             ))
+            legend_added[phase_name] = True
 
-# --- Add Today Line ---
+# --- Add ASU Maroon "Today" Line ---
 fig.add_shape(
     type="line",
-    x0=today, x1=today,
-    y0=-0.5, y1=len(df)-0.5,
+    x0=today,
+    x1=today,
+    y0=-0.5,
+    y1=len(df) - 0.5,
     line=dict(color=asu_maroon, width=2),
 )
+
+# Add thin line to legend manually
+fig.add_trace(go.Scatter(
+    x=[None],
+    y=[None],
+    mode='lines',
+    line=dict(color=asu_maroon, width=2),
+    name='Today'
+))
 
 # --- Layout ---
 fig.update_layout(
