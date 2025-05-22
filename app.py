@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 import datetime as dt
 import smartsheet
 
@@ -34,9 +35,6 @@ if st.button("🔄 Refresh Data"):
 
 df = fetch_smartsheet_data()
 
-# Debug: Show available columns
-# st.write("Available columns:", df.columns.tolist())
-
 # --- Preprocessing ---
 date_fields = [
     "Programming Start Date", "Schematic Design Start Date",
@@ -51,8 +49,10 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+# --- Colors and labels ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
+colors = ['#d62728', '#1f77b4', '#ff7f0e', '#2ca02c']  # Red, Blue, Orange, Green
+phase_colors = dict(zip(phases, colors))
 
 # --- Plotting ---
 fig, ax = plt.subplots(figsize=(18, len(df) * 0.6))
@@ -69,15 +69,28 @@ for i, row in df.iterrows():
     ]
     for j in range(4):
         if pd.notnull(starts[j]) and pd.notnull(ends[j]):
-            ax.barh(y=y_pos, width=(ends[j] - starts[j]).days,
-                    left=starts[j], color=colors[j], edgecolor='black')
+            ax.barh(
+                y=y_pos,
+                width=(ends[j] - starts[j]).days,
+                left=starts[j],
+                color=colors[j],
+                edgecolor='black'
+            )
 
-ax.axvline(dt.datetime.today(), color='red', linewidth=2, label='Today')
+# --- Add today line ---
+today = dt.datetime.today()
+ax.axvline(today, color='red', linewidth=2)
+
+# --- Configure axes ---
 ax.set_yticks(range(len(df)))
 ax.set_yticklabels(df["Project Name"].fillna("Unnamed Project"))
 ax.set_xlabel("Date")
 ax.set_title("Project Design Phases Timeline")
-ax.legend(phases + ["Today"], loc="upper right")
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
+
+# --- Legend ---
+legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
+legend_elements.append(Patch(facecolor='red', edgecolor='red', label='Today', linewidth=2))
+ax.legend(handles=legend_elements, loc="upper right")
 
 st.pyplot(fig)
