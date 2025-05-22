@@ -31,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Improved readability: larger project names + scrollable timeline.")
+st.caption("Enhanced for readability: larger fonts, bigger bars, scrollable view.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -76,8 +76,8 @@ latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting (Extra wide for scrollability) ---
-fig, ax = plt.subplots(figsize=(28, len(df) * 0.6))
+# --- Plotting (Larger + sharper)
+fig, ax = plt.subplots(figsize=(32, len(df) * 0.8), dpi=120)
 today = dt.datetime.today().date()
 
 # --- Horizontal guide lines ---
@@ -103,7 +103,8 @@ for i, row in df.iterrows():
                 left=starts[j],
                 color=colors[j],
                 edgecolor='black',
-                zorder=3
+                zorder=3,
+                height=0.6  # Increased bar thickness
             )
 
 # --- Alternating Year Backgrounds ---
@@ -121,27 +122,27 @@ ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon,
 # --- Configure Axes ---
 ax.set_xlim(x_min, x_max)
 ax.set_yticks(range(len(df)))
-ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize=14)
+ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize=16)
 ax.invert_yaxis()
-ax.tick_params(labelsize=10)
+ax.tick_params(labelsize=14)
 
-# --- X-axis: full month ticks ---
+# --- X-axis: full monthly ticks
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
 
-ax.set_xlabel("Date")
-ax.set_title("Project Design Phases Timeline", fontsize=18, color=asu_maroon)
+ax.set_xlabel("Date", fontsize=14)
+ax.set_title("Project Design Phases Timeline", fontsize=20, color=asu_maroon)
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
 
 # --- Legend ---
 legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
 legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
-ax.legend(handles=legend_elements, loc="upper right")
+ax.legend(handles=legend_elements, loc="upper right", fontsize=12)
 
 plt.tight_layout()
 
-# --- Scrollable output container ---
+# --- Scrollable container ---
 with st.container():
     st.markdown("<div style='overflow-x: auto;'>", unsafe_allow_html=True)
     st.pyplot(fig, use_container_width=False)
