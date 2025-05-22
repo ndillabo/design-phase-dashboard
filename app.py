@@ -29,7 +29,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Sorted by active projects first. Auto-refreshes on load or when clicking the refresh button.")
+st.caption("Sorted by Project # (ascending). Auto-refreshes on load or when clicking the refresh button.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -50,21 +50,15 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-# --- Identify Active Projects (Compare DATE only) ---
-today = dt.datetime.today().date()
-
-# Remove rows missing date fields to avoid errors
-df["Start Date"] = pd.to_datetime(df["Programming Start Date"], errors='coerce')
-df["End Date"] = pd.to_datetime(df["Permit Set Delivery Date"], errors='coerce')
-
-df["Is Active"] = (
-    df["Start Date"].dt.date <= today
-) & (
-    df["End Date"].dt.date >= today
+# --- Combine Project # and Project Name for Y-axis ---
+df["Y Label"] = df.apply(
+    lambda row: f"[{row['Project #']}] {row['Project Name']}" if pd.notnull(row["Project #"]) else row["Project Name"],
+    axis=1
 )
 
-# --- Sort: Active projects first, then by start date
-df = df.sort_values(by=["Is Active", "Programming Start Date"], ascending=[False, True]).reset_index(drop=True)
+# --- Sort by Project # numerically or alphanumerically ---
+df["Project # Sort"] = df["Project #"].astype(str)
+df = df.sort_values(by="Project # Sort", ascending=True).reset_index(drop=True)
 
 # --- ASU Brand Colors ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
@@ -73,6 +67,7 @@ phase_colors = dict(zip(phases, colors))
 
 # --- Plotting ---
 fig, ax = plt.subplots(figsize=(18, len(df) * 0.6))
+today = dt.datetime.today().date()
 
 for i, row in df.iterrows():
     y_pos = i
@@ -98,9 +93,9 @@ for i, row in df.iterrows():
 asu_maroon = '#8C1D40'
 ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2)
 
-# --- Axes & Labels ---
+# --- Configure Axes ---
 ax.set_yticks(range(len(df)))
-ax.set_yticklabels(df["Project Name"].fillna("Unnamed Project"), ha='right')
+ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right')
 ax.invert_yaxis()
 ax.tick_params(labelsize=10)
 ax.set_xlabel("Date")
