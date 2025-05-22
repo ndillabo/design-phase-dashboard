@@ -33,16 +33,6 @@ st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
 st.caption("Enhanced for readability: larger fonts, bigger bars, scrollable timeline.")
 
-# --- Add Project Button ---
-st.markdown("---")
-st.markdown("### Want to add a new project to the dashboard?")
-st.markdown("Use the form below — updates will appear after clicking **Refresh Data**.")
-st.markdown(
-    "[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)",
-    unsafe_allow_html=True
-)
-st.markdown("---")
-
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
 
@@ -86,7 +76,7 @@ latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting ---
+# --- Plotting (Larger + scrollable) ---
 fig, ax = plt.subplots(figsize=(32, len(df) * 0.8), dpi=120)
 today = dt.datetime.today().date()
 
@@ -136,7 +126,7 @@ ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize
 ax.invert_yaxis()
 ax.tick_params(labelsize=14)
 
-# --- X-axis: full month ticks
+# --- X-axis: full monthly ticks
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
@@ -157,3 +147,12 @@ with st.container():
     st.markdown("<div style='overflow-x: auto;'>", unsafe_allow_html=True)
     st.pyplot(fig, use_container_width=False)
     st.markdown("</div>", unsafe_allow_html=True)
+
+# --- Add Project Button (Moved below) ---
+st.markdown("---")
+st.markdown("### Want to add a new project to the dashboard?")
+st.markdown("Use the form below — updates will appear after clicking **Refresh Data**.")
+st.markdown(
+    "[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)",
+    unsafe_allow_html=True
+)
