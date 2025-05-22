@@ -29,7 +29,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Auto-refreshes on load or when clicking the refresh button.")
+st.caption("Now with official ASU colors. Auto-refreshes on load or when clicking the refresh button.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -50,9 +50,9 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-# --- Colors and labels ---
+# --- ASU Color Theme ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
-colors = ['#d62728', '#1f77b4', '#ff7f0e', '#2ca02c']  # Red, Blue, Orange, Green
+colors = ['#8C1D40', '#FFC627', '#5C6670', '#78BE20']  # ASU Maroon, Gold, Dark Gray, Green
 phase_colors = dict(zip(phases, colors))
 
 # --- Plotting ---
@@ -71,28 +71,4 @@ for i, row in df.iterrows():
     for j in range(4):
         if pd.notnull(starts[j]) and pd.notnull(ends[j]):
             ax.barh(
-                y=y_pos,
-                width=(ends[j] - starts[j]).days,
-                left=starts[j],
-                color=colors[j],
-                edgecolor='black'
-            )
-
-# --- Add today line (ASU Maroon) ---
-asu_maroon = '#891D40'
-today = dt.datetime.today()
-ax.axvline(today, color=asu_maroon, linewidth=2)
-
-# --- Configure axes ---
-ax.set_yticks(range(len(df)))
-ax.set_yticklabels(df["Project Name"].fillna("Unnamed Project"))
-ax.set_xlabel("Date")
-ax.set_title("Project Design Phases Timeline")
-ax.grid(True, axis='x', linestyle='--', alpha=0.5)
-
-# --- Legend with thin ASU maroon line for Today ---
-legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
-legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
-ax.legend(handles=legend_elements, loc="upper right")
-
-st.pyplot(fig)
+                y=y
