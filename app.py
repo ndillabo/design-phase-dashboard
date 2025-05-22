@@ -71,4 +71,28 @@ for i, row in df.iterrows():
     for j in range(4):
         if pd.notnull(starts[j]) and pd.notnull(ends[j]):
             ax.barh(
-                y=y
+                y=y_pos,
+                width=(ends[j] - starts[j]).days,
+                left=starts[j],
+                color=colors[j],
+                edgecolor='black'
+            )
+
+# --- Add Today Line (ASU Maroon) ---
+asu_maroon = '#8C1D40'
+today = dt.datetime.today()
+ax.axvline(today, color=asu_maroon, linewidth=2)
+
+# --- Configure Axes ---
+ax.set_yticks(range(len(df)))
+ax.set_yticklabels(df["Project Name"].fillna("Unnamed Project"))
+ax.set_xlabel("Date")
+ax.set_title("Project Design Phases Timeline", fontsize=18, color=asu_maroon)
+ax.grid(True, axis='x', linestyle='--', alpha=0.5)
+
+# --- Legend ---
+legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
+legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
+ax.legend(handles=legend_elements, loc="upper right")
+
+st.pyplot(fig)
