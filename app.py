@@ -50,14 +50,18 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-# --- Identify Active Projects (Today is between Programming Start and Permit Delivery)
-today = dt.datetime.today()
-df["Is Active"] = (df["Programming Start Date"] <= today) & (df["Permit Set Delivery Date"] >= today)
+# --- Identify Active Projects (Compare DATE only) ---
+today = dt.datetime.today().date()
+df["Is Active"] = (
+    df["Programming Start Date"].dt.date <= today
+) & (
+    df["Permit Set Delivery Date"].dt.date >= today
+)
 
-# --- Sort: Active first, then past
+# --- Sort: Active projects first, then by start date
 df = df.sort_values(by=["Is Active", "Programming Start Date"], ascending=[False, True]).reset_index(drop=True)
 
-# --- ASU Color Theme ---
+# --- ASU Brand Colors ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
 colors = ['#8C1D40', '#FFC627', '#5C6670', '#78BE20']  # ASU Maroon, Gold, Dark Gray, Green
 phase_colors = dict(zip(phases, colors))
@@ -87,7 +91,7 @@ for i, row in df.iterrows():
 
 # --- Add Today Line (ASU Maroon) ---
 asu_maroon = '#8C1D40'
-ax.axvline(today, color=asu_maroon, linewidth=2)
+ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2)
 
 # --- Configure Axes ---
 ax.set_yticks(range(len(df)))
