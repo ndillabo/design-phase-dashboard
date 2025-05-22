@@ -30,7 +30,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Now with month-level timeline detail. Auto-refreshes on load or when clicking the refresh button.")
+st.caption("Includes month ticks and alternating background years for readability.")
 
 if st.button("🔄 Refresh Data"):
     st.cache_data.clear()
@@ -73,6 +73,7 @@ phase_colors = dict(zip(phases, colors))
 fig, ax = plt.subplots(figsize=(18, len(df) * 0.6))
 today = dt.datetime.today().date()
 
+# --- Draw the bars
 for i, row in df.iterrows():
     y_pos = i
     starts = [
@@ -93,6 +94,14 @@ for i, row in df.iterrows():
                 edgecolor='black'
             )
 
+# --- Add alternating year backgrounds ---
+years = range(df["Programming Start Date"].dt.year.min() - 1, df["Permit Set Delivery Date"].dt.year.max() + 2)
+for year in years:
+    if year % 2 == 1:
+        start = dt.datetime(year, 1, 1)
+        end = dt.datetime(year + 1, 1, 1)
+        ax.axvspan(start, end, color='grey', alpha=0.1, zorder=0)
+
 # --- Add Today Line (ASU Maroon) ---
 asu_maroon = '#8C1D40'
 ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2)
@@ -103,7 +112,7 @@ ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right')
 ax.invert_yaxis()
 ax.tick_params(labelsize=10)
 
-# --- X-axis: Month + Year Formatting ---
+# --- X-axis month/year formatting ---
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
