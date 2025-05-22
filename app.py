@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 import datetime as dt
 import smartsheet
 
@@ -88,9 +89,9 @@ ax.set_xlabel("Date")
 ax.set_title("Project Design Phases Timeline")
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
 
-# --- Legend ---
+# --- Legend with thin "Today" line ---
 legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
-legend_elements.append(Patch(facecolor='red', edgecolor='red', label='Today', linewidth=2))
+legend_elements.append(Line2D([0], [0], color='red', lw=2, label='Today'))
 ax.legend(handles=legend_elements, loc="upper right")
 
 st.pyplot(fig)
