@@ -78,9 +78,10 @@ for i, row in df.iterrows():
                 edgecolor='black'
             )
 
-# --- Add today line ---
+# --- Add today line (ASU Maroon) ---
+asu_maroon = '#891D40'
 today = dt.datetime.today()
-ax.axvline(today, color='red', linewidth=2)
+ax.axvline(today, color=asu_maroon, linewidth=2)
 
 # --- Configure axes ---
 ax.set_yticks(range(len(df)))
@@ -89,9 +90,9 @@ ax.set_xlabel("Date")
 ax.set_title("Project Design Phases Timeline")
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
 
-# --- Legend with thin "Today" line ---
+# --- Legend with thin ASU maroon line for Today ---
 legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
-legend_elements.append(Line2D([0], [0], color='red', lw=2, label='Today'))
+legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
 ax.legend(handles=legend_elements, loc="upper right")
 
 st.pyplot(fig)
