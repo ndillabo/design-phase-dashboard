@@ -52,7 +52,7 @@ for _, row in df.iterrows():
     else:
         pname = row["Project Name"]
 
-    # Append the Design Manager name after a dash
+    # Append the Design Manager name
     full_label = f"{pname} — {row['Design Manager Name']}"
 
     phases = [
@@ -134,25 +134,25 @@ else:
         line_width=3
     )
 
-    # Layout: X-axis at bottom, locked Y-range, gridlines every month
+    # Layout: X-axis at bottom, remove vertical lock so panning above/below is allowed
     fig.update_layout(
-        height=40 * n_projects + 200,  
+        height=40 * n_projects + 200,
         title_text="Project Design Phases Timeline",
         title_font_size=26,
         legend_title_text="Phase",
         xaxis=dict(
-            side="bottom",            # ← place X-axis below the chart
+            side="bottom",            # place X-axis below the chart
             tickformat="%b %Y",
-            dtick="M1",
+            dtick="M1",               # monthly ticks
             tickangle=45,
             tickfont=dict(size=14),
             showgrid=True,
             gridcolor="lightgrey",
             gridwidth=1,
         ),
+        # Remove yaxis.fixedrange so vertical panning is back
         yaxis=dict(
-            range=[-0.5, n_projects - 0.5],
-            fixedrange=True          # disable vertical panning/zooming
+            autorange=True
         ),
         margin=dict(l=300, r=50, t=80, b=80),
     )
