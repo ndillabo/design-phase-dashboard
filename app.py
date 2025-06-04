@@ -74,11 +74,7 @@ color_theme = st.sidebar.selectbox(
 )
 
 # Jump to Project
-# Build list of full project labels later after filtering
-jump_to = "-- None --"  # placeholder, will update below
-
-# Compact View
-compact_mode = st.sidebar.checkbox("Compact (Mobile) View", value=False)
+jump_to = "-- None --"  # placeholder, will update after filtering
 
 # --- Apply Filters to df ---
 df_filtered = df.copy()
@@ -106,7 +102,7 @@ for idx, row in df_filtered.iterrows():
         ("Design Development", row["Design Development Start Date"], row["Construction Document Start Date"]),
         ("Construction Documents", row["Construction Document Start Date"], row["Permit Set Delivery Date"]),
     ]
-    for (_, start_dt, end_dt) in phases:
+    for _, start_dt, end_dt in phases:
         if pd.notnull(start_dt) and pd.notnull(end_dt) and start_dt <= today < end_dt:
             df_filtered.at[idx, "Active Today"] = True
             break
@@ -177,16 +173,13 @@ jump_to = st.sidebar.selectbox("Jump to Project", options=["-- None --"] + disti
 
 # If user selected a specific project to “jump” to, reorder so that project’s bars come first
 if jump_to != "-- None --":
-    # Bring selected project label to top
     remaining = [p for p in distinct_projects if p != jump_to]
     ordered = [jump_to] + remaining
     long_df["Project"] = pd.Categorical(long_df["Project"], categories=ordered, ordered=True)
     long_df = long_df.sort_values(by="Project").reset_index(drop=True)
 
-# --- Summary / Reporting Section (#3) ---
-# Compute total active projects (projects with any phase spanning today)
+# --- Summary / Reporting Section ---
 active_projects = df_filtered[df_filtered["Active Today"]]["Project Name"].nunique()
-# Compute count per current phase for active projects
 phase_counts = {"Programming": 0, "Schematic Design": 0, "Design Development": 0, "Construction Documents": 0}
 for _, row in df_filtered[df_filtered["Active Today"]].iterrows():
     for phase_name, start_dt, end_dt in [
@@ -215,7 +208,7 @@ overall_max = long_df["Finish"].max()
 start_year = overall_min.year
 end_year = overall_max.year
 
-# Color palette selection (#5)
+# Color palette selection
 if color_theme == "High Contrast":
     colors = {
         "Programming": "#004D40",
@@ -232,7 +225,7 @@ else:  # ASU Brand
     }
 
 # --- Build Plotly Timeline ---
-hover_fmt = {"Start": "|%b %d, %Y", "Finish": "|%b %d, %Y"}  # tooltip date formatting (#1)
+hover_fmt = {"Start": "|%b %d, %Y", "Finish": "|%b %d, %Y"}  # tooltip date formatting
 fig = px.timeline(
     long_df,
     x_start="Start",
@@ -246,7 +239,7 @@ fig = px.timeline(
 # Reverse y-axis so earliest project is at the top
 fig.update_yaxes(autorange="reversed")
 
-# Alternating even-year shading behind bars (#4)
+# Alternating even-year shading behind bars
 shapes = []
 for year in range(start_year, end_year + 1):
     if year % 2 == 0:
@@ -273,26 +266,19 @@ fig.update_layout(shapes=shapes)
 today = pd.to_datetime(dt.date.today())
 fig.add_vline(
     x=today,
-    line_color=colors["Programming"],  # ASU maroon or high-contrast colorspace
+    line_color=colors["Programming"],  # ASU maroon or high-contrast
     line_width=3
 )
 
 # Force initial dragmode = pan
 fig.update_layout(dragmode="pan")
 
-# Layout adjustments (#8: compact/mobile mode changes)
-if compact_mode:
-    row_height = 30
-    title_font = 20
-    tick_font = 12
-    legend_font = 12
-    margin_l = 200
-else:
-    row_height = 40
-    title_font = 26
-    tick_font = 14
-    legend_font = 16
-    margin_l = 300
+# Layout adjustments
+row_height = 40
+title_font = 26
+tick_font = 14
+legend_font = 16
+margin_l = 300
 
 fig.update_layout(
     height=row_height * n_projects + 200,
