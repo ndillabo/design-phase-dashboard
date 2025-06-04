@@ -22,16 +22,15 @@ def fetch_smartsheet_data():
     for row in sheet.rows:
         row_dict = {}
         for cell in row.cells:
-            for key, val in col_map.items():
-                if cell.column_id == val:
-                    row_dict[key] = cell.value
+            if cell.column_id in col_map.values():
+                row_dict[next(k for k, v in col_map.items() if v == cell.column_id)] = cell.value
         data.append(row_dict)
     return pd.DataFrame(data)
 
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Now truly scrollable with full-size zoomed-in display.")
+st.caption("Full-size, scrollable timeline view.")
 
 df = fetch_smartsheet_data()
 
@@ -69,7 +68,7 @@ latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting (high-resolution, extra wide)
+# --- Plot ---
 fig, ax = plt.subplots(figsize=(80, len(df) * 0.8), dpi=200)
 today = dt.datetime.today().date()
 
@@ -126,12 +125,14 @@ ax.legend(handles=legend_elements, loc="upper right", fontsize=16)
 
 plt.tight_layout()
 
-# --- Save figure and embed with horizontal scroll ---
+# --- Save and embed scrollable image ---
 buf = io.BytesIO()
 plt.savefig(buf, format="png", bbox_inches="tight")
-st.markdown("<div style='overflow-x: scroll; width: 100%;'><img src='data:image/png;base64," +
-            st.image(buf, use_column_width=False, output_format="auto").data.decode('utf-8') +
-            "'></div>", unsafe_allow_html=True)
+buf.seek(0)
+
+st.markdown("<div style='overflow-x: scroll; width: 100%;'>", unsafe_allow_html=True)
+st.image(buf, output_format="PNG", use_container_width=False)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Add Project Button ---
 st.markdown("---")
