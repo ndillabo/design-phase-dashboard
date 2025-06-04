@@ -90,28 +90,53 @@ today = dt.datetime.today().date()
 
 num_projects = len(df)
 
-# --- LEFT COLUMN: Y-Axis Labels as Fixed Image ---
+# --- CONSTANTS for Pixel-Perfect Alignment ---
+ROW_HEIGHT_PX = 40       # Each project row = 40 pixels tall
+LEFT_COLUMN_WIDTH_PX = 300  # Y-axis column width in px
+TIMELINE_WIDTH_PX = 5000    # Timeline wide image width in px
+DPI = 100                   # Dots per inch for both figures
+
+# Compute figure heights/widths in inches:
+fig_height_inches = (num_projects * ROW_HEIGHT_PX) / DPI
+fig_left_width_inches = LEFT_COLUMN_WIDTH_PX / DPI
+fig_right_width_inches = TIMELINE_WIDTH_PX / DPI
+
+# --- LEFT COLUMN: Y-Axis Labels as PNG (fixed) ---
 fig_left, ax_left = plt.subplots(
-    figsize=(4, num_projects * 0.8), dpi=150
+    figsize=(fig_left_width_inches, fig_height_inches), dpi=DPI
 )
+# Remove any margins
+fig_left.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+# Y-axis vertical span
 ax_left.set_ylim(-0.5, num_projects - 0.5)
 ax_left.set_xlim(0, 1)
-ax_left.axis("off")
+ax_left.axis("off")  # No axis box, ticks, etc.
+
+# Draw each label exactly at its row center
 for i, label in enumerate(df["Y Label"]):
-    ax_left.text(0.95, i, label, ha="right", va="center", fontsize=18)
+    ax_left.text(
+        0.99,
+        i,
+        label,
+        ha="right",
+        va="center",
+        fontsize=18,
+        color="black",
+    )
 
 buf_left = io.BytesIO()
-plt.tight_layout()
-plt.savefig(buf_left, format="png", bbox_inches="tight", pad_inches=0.1)
+plt.savefig(buf_left, format="png", bbox_inches="tight", pad_inches=0)
 buf_left.seek(0)
 img_left_base64 = base64.b64encode(buf_left.getvalue()).decode()
+plt.close(fig_left)
 
-plt.close(fig_left)  # close to free memory
-
-# --- RIGHT COLUMN: Timeline Chart as Scrollable Image ---
+# --- RIGHT COLUMN: Full Timeline Chart as PNG (scrollable) ---
 fig_right, ax_right = plt.subplots(
-    figsize=(100, num_projects * 0.8), dpi=150  # very wide to force scroll
+    figsize=(fig_right_width_inches, fig_height_inches), dpi=DPI
 )
+# Remove margins
+fig_right.subplots_adjust(left=0, right=1, top=1, bottom=0)
 
 # Horizontal grid lines behind bars
 for y in range(num_projects):
@@ -119,7 +144,7 @@ for y in range(num_projects):
         y=y, color="lightgrey", linestyle="--", linewidth=0.5, alpha=0.2, zorder=0
     )
 
-# Plot each phase as horizontal bar
+# Plot each phase as a horizontal bar
 for i, row in df.iterrows():
     y_pos = i
     starts = [
@@ -157,7 +182,7 @@ for year in range(x_min.year - 1, x_max.year + 2):
             zorder=0,
         )
 
-# "Today" vertical line in ASU maroon
+# "Today" line
 asu_maroon = "#8C1D40"
 ax_right.axvline(
     dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2, zorder=4
@@ -167,7 +192,7 @@ ax_right.axvline(
 ax_right.set_xlim(x_min, x_max)
 ax_right.set_ylim(-0.5, num_projects - 0.5)
 ax_right.set_yticks(range(num_projects))
-ax_right.set_yticklabels([])  # left side handles labels
+ax_right.set_yticklabels([])  # Labels live on the left image
 ax_right.invert_yaxis()
 ax_right.tick_params(labelsize=16)
 
@@ -188,46 +213,41 @@ legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label="Today"))
 ax_right.legend(handles=legend_elements, loc="upper right", fontsize=16)
 
 buf_right = io.BytesIO()
-plt.tight_layout()
-plt.savefig(buf_right, format="png", bbox_inches="tight", pad_inches=0.1)
+plt.savefig(buf_right, format="png", bbox_inches="tight", pad_inches=0)
 buf_right.seek(0)
 img_right_base64 = base64.b64encode(buf_right.getvalue()).decode()
-
 plt.close(fig_right)
 
-# --- RENDER SIDE-BY-SIDE IN STREAMLIT ---
+# --- RENDER SIDE BY SIDE WITH CSS (Fixed + Scrollable) ---
 st.markdown(
-    """
+    f"""
 <style>
-.fixed-left {
+.fixed-left {{
     display: inline-block;
     vertical-align: top;
-    width: 300px;
-}
-.scroll-right {
+    width: {LEFT_COLUMN_WIDTH_PX}px;
+}}
+.scroll-right {{
     display: inline-block;
     vertical-align: top;
     overflow-x: auto;
-    width: calc(100% - 325px);
-}
+    width: calc(100% - {LEFT_COLUMN_WIDTH_PX + 10}px);
+}}
 </style>
 <div class="fixed-left">
-    <img src="data:image/png;base64,""" + img_left_base64 + """" />
+    <img src="data:image/png;base64,{img_left_base64}" />
 </div>
 <div class="scroll-right">
-    <img src="data:image/png;base64,""" + img_right_base64 + """" />
+    <img src="data:image/png;base64,{img_right_base64}" />
 </div>
-<br style="clear: both;">
+<br style="clear: both;" />
 """,
     unsafe_allow_html=True,
 )
 
-# --- Add Project Button Below ---
+# --- Button to Add New Project ---
 st.markdown("---")
 st.markdown("### Want to add a new project to the dashboard?")
-st.markdown(
-    "Use the form below — updates will appear immediately after submission."
-)
 st.markdown(
     "[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)",
     unsafe_allow_html=True,
