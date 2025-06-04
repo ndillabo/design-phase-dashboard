@@ -73,8 +73,8 @@ color_theme = st.sidebar.selectbox(
     options=["ASU Brand", "High Contrast"]
 )
 
-# Jump to Project
-jump_to = "-- None --"  # placeholder, will update after filtering
+# Jump to Project placeholder
+jump_to = "-- None --"
 
 # --- Apply Filters to df ---
 df_filtered = df.copy()
@@ -92,7 +92,7 @@ if search_design_manager.strip():
     df_filtered = df_filtered[df_filtered["Design Manager Name"]
                               .str.contains(search_design_manager.strip(), case=False, na=False)]
 
-# Build a helper column for “active today” detection
+# Build “Active Today” helper
 today = pd.to_datetime(dt.date.today())
 df_filtered["Active Today"] = False
 for idx, row in df_filtered.iterrows():
@@ -167,11 +167,11 @@ if long_df.empty:
     st.info("No data matches your search or filter criteria.")
     st.stop()
 
-# Now that long_df exists, build the jump-to-project list
+# Now build jump-to list
 distinct_projects = long_df["Project"].unique().tolist()
 jump_to = st.sidebar.selectbox("Jump to Project", options=["-- None --"] + distinct_projects)
 
-# If user selected a specific project to “jump” to, reorder so that project’s bars come first
+# If user selected a project, reorder so that project bars come first
 if jump_to != "-- None --":
     remaining = [p for p in distinct_projects if p != jump_to]
     ordered = [jump_to] + remaining
@@ -279,26 +279,16 @@ fig.add_vline(
 # Force initial dragmode = pan
 fig.update_layout(dragmode="pan")
 
-# Customize modebar appearance: always visible, transparent background, maroon icons
-fig.update_layout(
-    modebar=dict(
-        bgcolor="rgba(0,0,0,0)",   # Transparent background for modebar
-        color="#8C1D40",          # ASU maroon for icons
-        activecolor="#8C1D40"     # ASU maroon for active icon
-    )
-)
-
-# You can override the default button size via the `config` parameter below:
+# Restore default modebar styling, but keep it always visible
 config = {
-    "displayModeBar": True, 
+    "displayModeBar": True,
     "displaylogo": False,
-    "modeBarButtonsToRemove": [], 
+    "modeBarButtonsToRemove": [],
     "modeBarButtonsToAdd": [],
     "modeBarButtons": [
         ["pan2d", "zoom2d", "zoomIn2d", "zoomOut2d", "resetScale2d", "hoverClosestCartesian"]
     ],
     "watermark": False,
-    # Increase icon size in modebar
     "modeBarButtonSize": 26
 }
 
@@ -341,7 +331,7 @@ fig.update_layout(
     )
 )
 
-# Render the interactive chart with custom modebar settings
+# Render the interactive chart with default modebar always visible
 st.plotly_chart(fig, use_container_width=True, config=config)
 
 # “Add New Project” Button
