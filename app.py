@@ -38,6 +38,7 @@ for fld in [
 # Build a “long” DataFrame for Plotly’s timeline
 records = []
 for _, row in df.iterrows():
+    # Build a label like "ProjectName (123456)"
     if pd.notnull(row.get("Project #")) and str(row["Project #"]).replace(".", "", 1).isdigit():
         pname = f"{row['Project Name']} ({int(row['Project #'])})"
     elif pd.notnull(row.get("Project #")):
@@ -70,57 +71,108 @@ colors = {
     "Construction Documents": "#78BE20"
 }
 
-# --- Build Plotly Timeline Figure ---
-fig = px.timeline(
-    long_df,
-    x_start="Start",
-    x_end="Finish",
-    y="Project",
-    color="Phase",
-    color_discrete_map=colors,
-)
+# If there are no valid records, skip the rest
+if long_df.empty:
+    st.write("No valid phase dates to display.")
+else:
+    # --- Determine the overall date range for shading ---
+    overall_min = long_df["Start"].min()
+    overall_max = long_df["Finish"].max()
 
-# Reverse y-axis so first project appears at the top
-fig.update_yaxes(autorange="reversed")
+    # Compute the first Jan 1st before or equal to the minimum date
+    start_year = overall_min.year
+    if overall_min.month != 1 or overall_min.day != 1:
+        # if not exactly Jan 1, still start shading at Jan 1 of that year
+        shading_start = dt.datetime(start_year, 1, 1)
+    else:
+        shading_start = dt.datetime(start_year, 1, 1)
 
-# Add a “Today” vertical line (no annotation_position to avoid TypeError)
-today = pd.to_datetime(dt.date.today())
-fig.add_vline(
-    x=today,
-    line_color="#8C1D40",
-    line_width=3
-)
+    # Compute the last Jan 1st after or equal to the maximum date
+    end_year = overall_max.year
+    shading_end = dt.datetime(end_year + 1, 1, 1)
 
-# Format X-axis: monthly ticks + rotated labels
-fig.update_layout(
-    height=40 * len(df) + 200,      # 40px per project row + padding
-    title_text="Project Design Phases Timeline",
-    title_font_size=26,
-    legend_title_text="Phase",
-    xaxis=dict(
-        tickformat="%b %Y",
-        dtick="M1",
-        tickangle=45,
-        tickfont=dict(size=14),
-    ),
-    margin=dict(l=300, r=50, t=80, b=80),   # 300px left margin for long names
-)
-
-# Enlarge the legend font and place it at the top‐right
-fig.update_traces(marker_line_width=1)
-fig.update_layout(
-    legend=dict(
-        font=dict(size=16),
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="right",
-        x=1
+    # --- Build Plotly Timeline Figure ---
+    fig = px.timeline(
+        long_df,
+        x_start="Start",
+        x_end="Finish",
+        y="Project",
+        color="Phase",
+        color_discrete_map=colors,
     )
-)
 
-# --- Display in Streamlit ---
-st.plotly_chart(fig, use_container_width=True)
+    # Reverse y-axis so earliest project appears at top
+    fig.update_yaxes(autorange="reversed")
+
+    # --- Add alternating-year background shapes ---
+    shapes = []
+    for year in range(start_year, end_year + 1):
+        if year % 2 == 0:
+            # Even year: shade from Jan 1 of this year to Jan 1 of next year
+            y0 = 0       # covers entire paper vertically
+            y1 = 1
+            x0 = dt.datetime(year, 1, 1)
+            x1 = dt.datetime(year + 1, 1, 1)
+            shapes.append(
+                dict(
+                    type="rect",
+                    xref="x",
+                    yref="paper",
+                    x0=x0,
+                    x1=x1,
+                    y0=y0,
+                    y1=y1,
+                    fillcolor="lightgray",
+                    opacity=0.2,
+                    layer="below",
+                    line_width=0,
+                )
+            )
+
+    # Assign shapes to the figure
+    fig.update_layout(shapes=shapes)
+
+    # --- Add a “Today” vertical line (no annotation_position) ---
+    today = pd.to_datetime(dt.date.today())
+    fig.add_vline(
+        x=today,
+        line_color="#8C1D40",
+        line_width=3,
+    )
+
+    # --- Format X-axis: ticks every month + rotated labels + vertical gridlines ---
+    fig.update_layout(
+        height=40 * len(df) + 200,       # 40px per project row + some padding
+        title_text="Project Design Phases Timeline",
+        title_font_size=26,
+        legend_title_text="Phase",
+        xaxis=dict(
+            tickformat="%b %Y",
+            dtick="M1",                  # one‐month interval
+            tickangle=45,
+            tickfont=dict(size=14),
+            showgrid=True,               # vertical gridlines at each tick
+            gridcolor="lightgrey",
+            gridwidth=1,
+        ),
+        margin=dict(l=300, r=50, t=80, b=80),  # leave 300px for long project names
+    )
+
+    # Enlarge the legend font and place it above
+    fig.update_traces(marker_line_width=1)
+    fig.update_layout(
+        legend=dict(
+            font=dict(size=16),
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    # --- Display in Streamlit ---
+    st.plotly_chart(fig, use_container_width=True)
 
 # --- “Add New Project” Button Below ---
 st.markdown("---")
