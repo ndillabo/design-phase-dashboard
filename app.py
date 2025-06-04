@@ -279,16 +279,16 @@ fig.add_vline(
 # Force initial dragmode = pan
 fig.update_layout(dragmode="pan")
 
-# Customize modebar appearance: always visible, larger icons (via increased scale), and ASU maroon
+# Customize modebar appearance: always visible, transparent background, maroon icons
 fig.update_layout(
     modebar=dict(
-        bgcolor="#8C1D40",          # ASU maroon background
-        activecolor="#FFFFFF",      # White for active icon
-        color="#FFFFFF"             # White for icons
+        bgcolor="rgba(0,0,0,0)",   # Transparent background for modebar
+        color="#8C1D40",          # ASU maroon for icons
+        activecolor="#8C1D40"     # ASU maroon for active icon
     )
 )
 
-# You can override the default button scale via the `config` parameter below:
+# You can override the default button size via the `config` parameter below:
 config = {
     "displayModeBar": True, 
     "displaylogo": False,
