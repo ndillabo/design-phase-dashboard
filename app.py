@@ -180,7 +180,12 @@ if jump_to != "-- None --":
 
 # --- Summary / Reporting Section ---
 active_projects = df_filtered[df_filtered["Active Today"]]["Project Name"].nunique()
-phase_counts = {"Programming": 0, "Schematic Design": 0, "Design Development": 0, "Construction Documents": 0}
+phase_counts = {
+    "Programming": 0,
+    "Schematic Design": 0,
+    "Design Development": 0,
+    "Construction Documents": 0
+}
 for _, row in df_filtered[df_filtered["Active Today"]].iterrows():
     for phase_name, start_dt, end_dt in [
         ("Programming", row["Programming Start Date"], row["Schematic Design Start Date"]),
@@ -193,12 +198,13 @@ for _, row in df_filtered[df_filtered["Active Today"]].iterrows():
             break
 
 st.markdown("### 📈 Summary")
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 col1.metric("Total Projects", df_filtered["Project Name"].nunique())
 col2.metric("Active Today", active_projects)
 col3.metric("In Programming", phase_counts["Programming"])
 col4.metric("In Schematic", phase_counts["Schematic Design"])
-col5.metric("In CD Phase", phase_counts["Construction Documents"])
+col5.metric("In Design Development", phase_counts["Design Development"])
+col6.metric("In CD Phase", phase_counts["Construction Documents"])
 
 # --- Determine plot dimensions and shading ---
 distinct_projects = long_df["Project"].unique().tolist()
