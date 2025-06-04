@@ -3,12 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-import datetime as dt
-import smartsheet
 import matplotlib.dates as mdates
-from dateutil.relativedelta import relativedelta
+import datetime as dt
 import io
 import base64
+from dateutil.relativedelta import relativedelta
+import smartsheet
 
 # --- Smartsheet Setup ---
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
@@ -17,7 +17,6 @@ SHEET_ID = st.secrets["SHEET_ID"]
 def fetch_smartsheet_data():
     client = smartsheet.Smartsheet(SMartsheet_TOKEN)
     sheet = client.Sheets.get_sheet(SHEET_ID)
-
     col_map = {col.title: col.id for col in sheet.columns}
     data = []
     for row in sheet.rows:
@@ -28,10 +27,10 @@ def fetch_smartsheet_data():
         data.append(row_dict)
     return pd.DataFrame(data)
 
-# --- App UI ---
+# --- App Layout ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Fully scrollable, full-size chart embedded as raw HTML.")
+st.caption("Fixed Y-axis with scrollable timeline view.")
 
 df = fetch_smartsheet_data()
 
@@ -68,13 +67,24 @@ earliest = df[["Programming Start Date", "Schematic Design Start Date", "Design 
 latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
-
-# --- Plot ---
-fig, ax = plt.subplots(figsize=(80, len(df) * 0.8), dpi=200)
 today = dt.datetime.today().date()
 
+# --- Left Column (Y-axis labels as image) ---
+fig_left, ax_left = plt.subplots(figsize=(4, len(df) * 0.8), dpi=150)
+ax_left.set_ylim(-0.5, len(df) - 0.5)
+ax_left.set_xlim(0, 1)
+ax_left.axis("off")
+for i, label in enumerate(df["Y Label"]):
+    ax_left.text(0.95, i, label, ha="right", va="center", fontsize=16)
+buf_left = io.BytesIO()
+plt.savefig(buf_left, format="png", bbox_inches="tight")
+buf_left.seek(0)
+img_left_base64 = base64.b64encode(buf_left.getvalue()).decode()
+
+# --- Right Column (timeline graph) ---
+fig_right, ax_right = plt.subplots(figsize=(80, len(df) * 0.8), dpi=200)
 for y in range(len(df)):
-    ax.axhline(y=y, color='lightgrey', linestyle='--', linewidth=0.5, zorder=0, alpha=0.2)
+    ax_right.axhline(y=y, color='lightgrey', linestyle='--', linewidth=0.5, zorder=0, alpha=0.2)
 
 for i, row in df.iterrows():
     y_pos = i
@@ -88,7 +98,7 @@ for i, row in df.iterrows():
     ]
     for j in range(4):
         if pd.notnull(starts[j]) and pd.notnull(ends[j]):
-            ax.barh(
+            ax_right.barh(
                 y=y_pos,
                 width=(ends[j] - starts[j]).days,
                 left=starts[j],
@@ -98,49 +108,54 @@ for i, row in df.iterrows():
                 height=0.6
             )
 
-years = range(x_min.year - 1, x_max.year + 1)
-for year in years:
+for year in range(x_min.year - 1, x_max.year + 1):
     if year % 2 == 1:
-        ax.axvspan(dt.datetime(year, 1, 1), dt.datetime(year + 1, 1, 1), color='grey', alpha=0.1, zorder=0)
+        ax_right.axvspan(dt.datetime(year, 1, 1), dt.datetime(year + 1, 1, 1), color='grey', alpha=0.1, zorder=0)
 
 asu_maroon = '#8C1D40'
-ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2, zorder=4)
+ax_right.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2, zorder=4)
 
-ax.set_xlim(x_min, x_max)
-ax.set_yticks(range(len(df)))
-ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize=20)
-ax.invert_yaxis()
-ax.tick_params(labelsize=18)
-
-ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
-ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-fig.autofmt_xdate(rotation=45)
-
-ax.set_xlabel("Date", fontsize=18)
-ax.set_title("Project Design Phases Timeline", fontsize=26, color=asu_maroon)
-ax.grid(True, axis='x', linestyle='--', alpha=0.5)
-
+ax_right.set_xlim(x_min, x_max)
+ax_right.set_yticks(range(len(df)))
+ax_right.set_yticklabels([])
+ax_right.invert_yaxis()
+ax_right.tick_params(labelsize=18)
+ax_right.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+ax_right.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+fig_right.autofmt_xdate(rotation=45)
+ax_right.set_xlabel("Date", fontsize=18)
+ax_right.set_title("Project Design Phases Timeline", fontsize=26, color=asu_maroon)
+ax_right.grid(True, axis='x', linestyle='--', alpha=0.5)
 legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
 legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
-ax.legend(handles=legend_elements, loc="upper right", fontsize=16)
+ax_right.legend(handles=legend_elements, loc="upper right", fontsize=16)
 
-plt.tight_layout()
+buf_right = io.BytesIO()
+plt.savefig(buf_right, format="png", bbox_inches="tight")
+buf_right.seek(0)
+img_right_base64 = base64.b64encode(buf_right.getvalue()).decode()
 
-# --- Save figure to buffer and encode to base64 for HTML injection
-buf = io.BytesIO()
-plt.savefig(buf, format="png", bbox_inches="tight")
-buf.seek(0)
-img_bytes = buf.getvalue()
-img_base64 = base64.b64encode(img_bytes).decode()
-
-# --- Scrollable image rendering ---
-scrollable_html = f"""
-<div style="overflow-x: auto; width: 100%;">
-    <img src="data:image/png;base64,{img_base64}" style="width: 5000px;" />
+# --- Render side-by-side layout ---
+st.markdown("""
+<style>
+.fixed-left {
+    float: left;
+    width: 320px;
+    padding-right: 10px;
+}
+.scroll-right {
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+</style>
+<div class="fixed-left">
+    <img src="data:image/png;base64,""" + img_left_base64 + """" />
 </div>
-"""
-
-st.markdown(scrollable_html, unsafe_allow_html=True)
+<div class="scroll-right">
+    <img src="data:image/png;base64,""" + img_right_base64 + """" />
+</div>
+<br style="clear: both" />
+""", unsafe_allow_html=True)
 
 # --- Add Project Button ---
 st.markdown("---")
