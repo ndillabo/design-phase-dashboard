@@ -12,7 +12,6 @@ from dateutil.relativedelta import relativedelta
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
 SHEET_ID = st.secrets["SHEET_ID"]
 
-# --- Always fetch fresh data ---
 def fetch_smartsheet_data():
     client = smartsheet.Smartsheet(SMartsheet_TOKEN)
     sheet = client.Sheets.get_sheet(SHEET_ID)
@@ -31,7 +30,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Always showing the most up-to-date Smartsheet data.")
+st.caption("Now with extra-wide layout for easier timeline visibility.")
 
 df = fetch_smartsheet_data()
 
@@ -73,8 +72,8 @@ latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting ---
-fig, ax = plt.subplots(figsize=(32, len(df) * 0.8), dpi=120)
+# --- Plotting (2x horizontal stretch) ---
+fig, ax = plt.subplots(figsize=(64, len(df) * 0.8), dpi=120)
 today = dt.datetime.today().date()
 
 # --- Horizontal guide lines ---
@@ -123,7 +122,7 @@ ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize
 ax.invert_yaxis()
 ax.tick_params(labelsize=14)
 
-# --- X-axis formatting ---
+# --- X-axis: full monthly ticks
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
