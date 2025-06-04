@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import datetime as dt                  # ← Make sure to import dt here
 import smartsheet
 
-# 1) Fetch your Smartsheet data (same as before)
+# --- Smartsheet Setup ---
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
 SHEET_ID = st.secrets["SHEET_ID"]
 
@@ -11,19 +12,21 @@ def fetch_smartsheet_data():
     client = smartsheet.Smartsheet(SMartsheet_TOKEN)
     sheet = client.Sheets.get_sheet(SHEET_ID)
     col_map = {col.title: col.id for col in sheet.columns}
-    rows = []
+    data = []
     for row in sheet.rows:
-        d = {}
+        row_dict = {}
         for cell in row.cells:
-            for title, cid in col_map.items():
-                if cell.column_id == cid:
-                    d[title] = cell.value
-        rows.append(d)
-    return pd.DataFrame(rows)
+            if cell.column_id in col_map.values():
+                # Find the column title that matches this cell
+                title = next(k for k, v in col_map.items() if v == cell.column_id)
+                row_dict[title] = cell.value
+        data.append(row_dict)
+    return pd.DataFrame(data)
 
+# --- Fetch & Preprocess Data ---
 df = fetch_smartsheet_data()
 
-# 2) Convert date fields to datetime
+# Convert Smartsheet date fields to datetime
 for fld in [
     "Programming Start Date",
     "Schematic Design Start Date",
@@ -33,11 +36,17 @@ for fld in [
 ]:
     df[fld] = pd.to_datetime(df[fld], errors="coerce")
 
-# 3) Build a “long” DataFrame for Plotly:
-#    Each row = one phase of one project. Contains: Project Name, Phase, Start, End
+# Build a “long” DataFrame for Plotly’s timeline
 records = []
 for _, row in df.iterrows():
-    pname = f"{row['Project Name']} ({int(row['Project #'])})"
+    pname = (
+        f"{row['Project Name']} ({int(row['Project #'])})"
+        if pd.notnull(row["Project #"]) and str(row["Project #"]).replace(".", "", 1).isdigit()
+        else f"{row['Project Name']} ({row['Project #']})"
+        if pd.notnull(row["Project #"])
+        else row["Project Name"]
+    )
+    # Define each phase with its start & end
     phases = [
         ("Programming", row["Programming Start Date"], row["Schematic Design Start Date"]),
         ("Schematic Design", row["Schematic Design Start Date"], row["Design Development Start Date"]),
@@ -55,14 +64,15 @@ for _, row in df.iterrows():
 
 long_df = pd.DataFrame.from_records(records)
 
-# 4) Use Plotly Express timeline() – it’s interactive by default
+# ASU brand colors
 colors = {
-    "Programming": "#8C1D40", 
-    "Schematic Design": "#FFC627", 
-    "Design Development": "#5C6670", 
+    "Programming": "#8C1D40",
+    "Schematic Design": "#FFC627",
+    "Design Development": "#5C6670",
     "Construction Documents": "#78BE20"
 }
 
+# --- Build Plotly Timeline Figure ---
 fig = px.timeline(
     long_df,
     x_start="Start",
@@ -72,32 +82,55 @@ fig = px.timeline(
     color_discrete_map=colors,
 )
 
-# In Plotly Express, the y-axis is sorted descending by default; invert if you want earliest on top
+# Plotly inverts the y-axis by default (so that the first row appears at the bottom).
+# To keep “earliest project” at the top, we reverse the order:
 fig.update_yaxes(autorange="reversed")
 
-# Add “Today” line
+# Add a “Today” vertical line
 today = pd.to_datetime(dt.date.today())
 fig.add_vline(
-    x=today, 
-    line_color="#8C1D40", 
-    line_width=3, 
-    annotation_text="Today", 
+    x=today,
+    line_color="#8C1D40",
+    line_width=3,
+    annotation_text="Today",
     annotation_position="top right",
 )
 
-# Format X-axis to show month/year, and alternate shading if desired
+# Format X-axis: monthly ticks + rotated labels
 fig.update_layout(
-    height=ROW_HEIGHT_PX * len(df) + 200,   # same per‐row pixel height approach
+    height=40 * len(df) + 200,      # 40px per project row + extra padding
     title_text="Project Design Phases Timeline",
     title_font_size=26,
     legend_title_text="Phase",
     xaxis=dict(
         tickformat="%b %Y",
-        dtick="M1",            # one‐month tick interval
+        dtick="M1",                 # one‐month interval
         tickangle=45,
+        tickfont=dict(size=14),
     ),
-    margin=dict(l=300, r=50, t=80, b=80),  # left margin to see entire y labels
+    margin=dict(l=300, r=50, t=80, b=80),   # 300px left margin to show long project names
 )
 
-# 5) Simply show it in Streamlit – it’s scrollable/pannable by default
+# Enlarge the legend font
+fig.update_traces(marker_line_width=1)
+fig.update_layout(
+    legend=dict(
+        font=dict(size=16),
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1
+    )
+)
+
+# --- Display in Streamlit ---
 st.plotly_chart(fig, use_container_width=True)
+
+# --- “Add New Project” Button Below ---
+st.markdown("---")
+st.markdown("### Want to add a new project to the dashboard?")
+st.markdown(
+    "[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)",
+    unsafe_allow_html=True,
+)
