@@ -30,7 +30,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Now with extra-wide layout for easier timeline visibility.")
+st.caption("Now with horizontal scrolling at full zoom (no zoom out).")
 
 df = fetch_smartsheet_data()
 
@@ -72,8 +72,8 @@ latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting (2x horizontal stretch) ---
-fig, ax = plt.subplots(figsize=(64, len(df) * 0.8), dpi=120)
+# --- Plotting ---
+fig, ax = plt.subplots(figsize=(32, len(df) * 0.8), dpi=120)
 today = dt.datetime.today().date()
 
 # --- Horizontal guide lines ---
@@ -138,9 +138,11 @@ ax.legend(handles=legend_elements, loc="upper right", fontsize=12)
 
 plt.tight_layout()
 
-# --- Scrollable output container ---
+# --- Force scrollable width while preserving zoom
 with st.container():
-    st.markdown("<div style='overflow-x: auto;'>", unsafe_allow_html=True)
+    st.markdown("""
+        <div style='width:3000px; overflow-x: auto;'>
+    """, unsafe_allow_html=True)
     st.pyplot(fig, use_container_width=False)
     st.markdown("</div>", unsafe_allow_html=True)
 
