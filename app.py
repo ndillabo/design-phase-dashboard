@@ -24,20 +24,19 @@ def fetch_smartsheet_data():
 
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Use the sidebar to filter and sort, just like in Excel.")
+st.caption("Use the sidebar to search and sort projects.")
 
 # --- Fetch & Preprocess Data ---
 df = fetch_smartsheet_data()
 
-# Convert date fields to datetime
-date_fields = [
+# Convert Smartsheet date fields to datetime
+for fld in [
     "Programming Start Date",
     "Schematic Design Start Date",
     "Design Development Start Date",
     "Construction Document Start Date",
     "Permit Set Delivery Date",
-]
-for fld in date_fields:
+]:
     df[fld] = pd.to_datetime(df[fld], errors="coerce")
 
 # Ensure “Design Manager Name” exists
@@ -45,30 +44,17 @@ if "Design Manager Name" not in df.columns:
     st.error("Column 'Design Manager Name' not found in your Smartsheet data.")
     st.stop()
 
-# Sidebar: Filtering and Sorting Controls
-st.sidebar.header("🔍 Filter & Sort")
+# Sidebar: Search & Sort Controls
+st.sidebar.header("🔍 Search & Sort")
 
-# 1) Filter by Design Manager
-all_managers = sorted(df["Design Manager Name"].dropna().unique().tolist())
-selected_managers = st.sidebar.multiselect(
-    "Design Manager",
-    options=all_managers,
-    default=all_managers
-)
+# 1) Search by Project Name (substring, case-insensitive)
+search_project_name = st.sidebar.text_input("Search Project Name", value="")
 
-# 2) Filter by Phase
-all_phases = ["Programming", "Schematic Design", "Design Development", "Construction Documents"]
-selected_phases = st.sidebar.multiselect(
-    "Phases to Show",
-    options=all_phases,
-    default=all_phases
-)
+# 2) Search by Project Number (substring)
+search_project_number = st.sidebar.text_input("Search Project Number", value="")
 
-# 3) Search by Project Name
-search_text = st.sidebar.text_input(
-    "Search Project Name",
-    value=""
-)
+# 3) Search by Design Manager (substring, case-insensitive)
+search_design_manager = st.sidebar.text_input("Search Design Manager", value="")
 
 # 4) Sort Order
 sort_option = st.sidebar.selectbox(
@@ -76,19 +62,28 @@ sort_option = st.sidebar.selectbox(
     options=["Design Manager", "Project Name", "Programming Start Date"]
 )
 
-# Apply Manager filter
-if selected_managers:
-    df_filtered = df[df["Design Manager Name"].isin(selected_managers)].copy()
-else:
-    df_filtered = df.copy()
+# --- Apply Filters ---
+df_filtered = df.copy()
 
-# Apply Project Name search (case‐insensitive substring)
-if search_text.strip():
+# Filter: Project Name
+if search_project_name.strip():
     df_filtered = df_filtered[df_filtered["Project Name"].str.contains(
-        search_text.strip(), case=False, na=False
+        search_project_name.strip(), case=False, na=False
     )]
 
-# Apply sort order
+# Filter: Project Number
+if search_project_number.strip():
+    df_filtered = df_filtered[df_filtered["Project #"].astype(str).str.contains(
+        search_project_number.strip(), na=False
+    )]
+
+# Filter: Design Manager Name
+if search_design_manager.strip():
+    df_filtered = df_filtered[df_filtered["Design Manager Name"].str.contains(
+        search_design_manager.strip(), case=False, na=False
+    )]
+
+# --- Apply Sort Order ---
 if sort_option == "Design Manager":
     df_filtered["Project # Sort"] = df_filtered["Project #"].astype(str)
     df_filtered = df_filtered.sort_values(
@@ -103,10 +98,10 @@ else:  # "Programming Start Date"
         by=["Programming Start Date"], ascending=True
     ).reset_index(drop=True)
 
-# Build long_df = one row per Project‐Phase
+# Build a “long” DataFrame for Plotly’s timeline: one row per Project‐Phase
 records = []
 for _, row in df_filtered.iterrows():
-    # Construct label "Project (ID) — Design Manager"
+    # Construct "Project Name (Project #)" label
     if pd.notnull(row.get("Project #")) and str(row["Project #"]).replace(".", "", 1).isdigit():
         pname = f"{row['Project Name']} ({int(row['Project #'])})"
     elif pd.notnull(row.get("Project #")):
@@ -114,32 +109,30 @@ for _, row in df_filtered.iterrows():
     else:
         pname = row["Project Name"]
 
+    # Append the Design Manager name
     full_label = f"{pname} — {row['Design Manager Name']}"
 
-    phase_defs = [
+    # Define each of the four phases with start & end
+    phases = [
         ("Programming", row["Programming Start Date"], row["Schematic Design Start Date"]),
         ("Schematic Design", row["Schematic Design Start Date"], row["Design Development Start Date"]),
         ("Design Development", row["Design Development Start Date"], row["Construction Document Start Date"]),
         ("Construction Documents", row["Construction Document Start Date"], row["Permit Set Delivery Date"]),
     ]
-
-    for phase_name, start_dt, end_dt in phase_defs:
-        if pd.isna(start_dt) or pd.isna(end_dt):
-            continue
-        if phase_name not in selected_phases:
-            continue
-        records.append({
-            "Project": full_label,
-            "Phase": phase_name,
-            "Start": start_dt,
-            "Finish": end_dt
-        })
+    for phase_name, start_dt, end_dt in phases:
+        if pd.notnull(start_dt) and pd.notnull(end_dt):
+            records.append({
+                "Project": full_label,
+                "Phase": phase_name,
+                "Start": start_dt,
+                "Finish": end_dt
+            })
 
 long_df = pd.DataFrame.from_records(records)
 
-# If no data after filters, show a message and stop
+# If no data after applying filters, show a message and exit
 if long_df.empty:
-    st.info("No data matches the current filters/search.")
+    st.info("No data matches your search criteria.")
     st.stop()
 
 # ASU brand colors
@@ -194,7 +187,7 @@ for year in range(start_year, end_year + 1):
         )
 fig.update_layout(shapes=shapes)
 
-# Add “Today” line
+# Add “Today” vertical line (ASU maroon)
 today = pd.to_datetime(dt.date.today())
 fig.add_vline(
     x=today,
@@ -202,27 +195,27 @@ fig.add_vline(
     line_width=3
 )
 
-# Layout: X-axis at bottom, monthly gridlines, no vertical lock
+# Layout: X-axis at bottom with monthly gridlines, vertical panning allowed
 fig.update_layout(
-    height=40 * n_projects + 200,   # 40px per project
+    height=40 * n_projects + 200,        # 40px per project row + padding
     title_text="Project Design Phases Timeline",
     title_font_size=26,
     legend_title_text="Phase",
     xaxis=dict(
-        side="bottom",
+        side="bottom",                   # place X-axis below
         tickformat="%b %Y",
-        dtick="M1",
+        dtick="M1",                      # monthly ticks
         tickangle=45,
         tickfont=dict(size=14),
         showgrid=True,
         gridcolor="lightgrey",
         gridwidth=1,
     ),
-    yaxis=dict(autorange=True),
-    margin=dict(l=300, r=50, t=80, b=80),
+    yaxis=dict(autorange=True),          # vertical panning/zooming enabled
+    margin=dict(l=300, r=50, t=80, b=80), # leave 300px for long Y-axis labels
 )
 
-# Enlarge legend font, place it above the plot
+# Enlarge legend font and place at top
 fig.update_traces(marker_line_width=1)
 fig.update_layout(
     legend=dict(
@@ -235,10 +228,10 @@ fig.update_layout(
     )
 )
 
-# Display the timeline
+# Display the Plotly chart
 st.plotly_chart(fig, use_container_width=True)
 
-# “Add New Project” Button
+# “Add New Project” Button Below
 st.markdown("---")
 st.markdown("### Want to add a new project to the dashboard?")
 st.markdown(
