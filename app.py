@@ -272,21 +272,21 @@ fig.update_layout(shapes=shapes)
 today = pd.to_datetime(dt.date.today())
 fig.add_vline(
     x=today,
-    line_color=colors["Programming"],
+    line_color=colors["Programming"],  # ASU maroon or high-contrast
     line_width=3
 )
 
 # Force initial dragmode = pan
 fig.update_layout(dragmode="pan")
 
-# Use default modebar but ensure full-screen button is present and always visible
+# Restore default modebar styling, but keep it always visible
 config = {
     "displayModeBar": True,
     "displaylogo": False,
     "modeBarButtonsToRemove": [],
     "modeBarButtonsToAdd": [],
     "modeBarButtons": [
-        ["pan2d", "zoom2d", "zoomIn2d", "zoomOut2d", "resetScale2d", "hoverClosestCartesian", "toggleFullscreen"]
+        ["pan2d", "zoom2d", "zoomIn2d", "zoomOut2d", "resetScale2d", "hoverClosestCartesian"]
     ],
     "watermark": False,
     "modeBarButtonSize": 26
