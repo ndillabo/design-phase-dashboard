@@ -38,7 +38,7 @@ for fld in [
 # Build a “long” DataFrame for Plotly’s timeline
 records = []
 for _, row in df.iterrows():
-    # Build a label like "ProjectName (123456)"
+    # Construct "Project Name (Project#)" label if Project # exists
     if pd.notnull(row.get("Project #")) and str(row["Project #"]).replace(".", "", 1).isdigit():
         pname = f"{row['Project Name']} ({int(row['Project #'])})"
     elif pd.notnull(row.get("Project #")):
@@ -71,27 +71,23 @@ colors = {
     "Construction Documents": "#78BE20"
 }
 
-# If there are no valid records, skip the rest
 if long_df.empty:
     st.write("No valid phase dates to display.")
 else:
-    # --- Determine the overall date range for shading ---
+    # Determine how many distinct projects (for locking the y‐axis)
+    distinct_projects = long_df["Project"].unique().tolist()
+    n_projects = len(distinct_projects)
+
+    # --- Determine overall date range for shading ---
     overall_min = long_df["Start"].min()
     overall_max = long_df["Finish"].max()
 
-    # Compute the first Jan 1st before or equal to the minimum date
     start_year = overall_min.year
-    if overall_min.month != 1 or overall_min.day != 1:
-        # if not exactly Jan 1, still start shading at Jan 1 of that year
-        shading_start = dt.datetime(start_year, 1, 1)
-    else:
-        shading_start = dt.datetime(start_year, 1, 1)
-
-    # Compute the last Jan 1st after or equal to the maximum date
+    shading_start = dt.datetime(start_year, 1, 1)
     end_year = overall_max.year
     shading_end = dt.datetime(end_year + 1, 1, 1)
 
-    # --- Build Plotly Timeline Figure ---
+    # Build the Plotly timeline figure
     fig = px.timeline(
         long_df,
         x_start="Start",
@@ -101,16 +97,13 @@ else:
         color_discrete_map=colors,
     )
 
-    # Reverse y-axis so earliest project appears at top
+    # Reverse y-axis so earliest project is at top
     fig.update_yaxes(autorange="reversed")
 
-    # --- Add alternating-year background shapes ---
+    # --- Add alternating even-year shading ---
     shapes = []
     for year in range(start_year, end_year + 1):
         if year % 2 == 0:
-            # Even year: shade from Jan 1 of this year to Jan 1 of next year
-            y0 = 0       # covers entire paper vertically
-            y1 = 1
             x0 = dt.datetime(year, 1, 1)
             x1 = dt.datetime(year + 1, 1, 1)
             shapes.append(
@@ -120,45 +113,49 @@ else:
                     yref="paper",
                     x0=x0,
                     x1=x1,
-                    y0=y0,
-                    y1=y1,
+                    y0=0,
+                    y1=1,
                     fillcolor="lightgray",
                     opacity=0.2,
                     layer="below",
                     line_width=0,
                 )
             )
-
-    # Assign shapes to the figure
     fig.update_layout(shapes=shapes)
 
-    # --- Add a “Today” vertical line (no annotation_position) ---
+    # --- Add a "Today" vertical line (ASU maroon) without annotation_position ---
     today = pd.to_datetime(dt.date.today())
     fig.add_vline(
         x=today,
         line_color="#8C1D40",
-        line_width=3,
+        line_width=3
     )
 
-    # --- Format X-axis: ticks every month + rotated labels + vertical gridlines ---
+    # --- Lock the y-axis range exactly from -0.5 to (n_projects - 0.5) and prevent vertical panning/zooming ---
+    fig.update_yaxes(
+        range=[-0.5, n_projects - 0.5],
+        fixedrange=True  # disables y-axis pan/zoom
+    )
+
+    # --- Format X-axis with monthly gridlines + rotated tick labels ---
     fig.update_layout(
-        height=40 * len(df) + 200,       # 40px per project row + some padding
+        height=40 * n_projects + 200,  # 40px per project + padding
         title_text="Project Design Phases Timeline",
         title_font_size=26,
         legend_title_text="Phase",
         xaxis=dict(
             tickformat="%b %Y",
-            dtick="M1",                  # one‐month interval
+            dtick="M1",                  # one month interval
             tickangle=45,
             tickfont=dict(size=14),
-            showgrid=True,               # vertical gridlines at each tick
+            showgrid=True,
             gridcolor="lightgrey",
             gridwidth=1,
         ),
-        margin=dict(l=300, r=50, t=80, b=80),  # leave 300px for long project names
+        margin=dict(l=300, r=50, t=80, b=80),  # 300px left margin for project names
     )
 
-    # Enlarge the legend font and place it above
+    # Enlarge the legend and position it at the top right
     fig.update_traces(marker_line_width=1)
     fig.update_layout(
         legend=dict(
