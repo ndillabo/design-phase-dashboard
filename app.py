@@ -8,6 +8,7 @@ import smartsheet
 import matplotlib.dates as mdates
 from dateutil.relativedelta import relativedelta
 import io
+import base64
 
 # --- Smartsheet Setup ---
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
@@ -30,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Full-size, scrollable timeline view.")
+st.caption("Fully scrollable, full-size chart embedded as raw HTML.")
 
 df = fetch_smartsheet_data()
 
@@ -125,14 +126,21 @@ ax.legend(handles=legend_elements, loc="upper right", fontsize=16)
 
 plt.tight_layout()
 
-# --- Save and embed scrollable image ---
+# --- Save figure to buffer and encode to base64 for HTML injection
 buf = io.BytesIO()
 plt.savefig(buf, format="png", bbox_inches="tight")
 buf.seek(0)
+img_bytes = buf.getvalue()
+img_base64 = base64.b64encode(img_bytes).decode()
 
-st.markdown("<div style='overflow-x: scroll; width: 100%;'>", unsafe_allow_html=True)
-st.image(buf, output_format="PNG", use_container_width=False)
-st.markdown("</div>", unsafe_allow_html=True)
+# --- Scrollable image rendering ---
+scrollable_html = f"""
+<div style="overflow-x: auto; width: 100%;">
+    <img src="data:image/png;base64,{img_base64}" style="width: 5000px;" />
+</div>
+"""
+
+st.markdown(scrollable_html, unsafe_allow_html=True)
 
 # --- Add Project Button ---
 st.markdown("---")
