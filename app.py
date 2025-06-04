@@ -214,6 +214,9 @@ fig.add_vline(
     line_width=3
 )
 
+# Force the initial dragmode to “pan” (hand tool) instead of zoom
+fig.update_layout(dragmode="pan")
+
 # Layout: X-axis at bottom with monthly gridlines, vertical panning allowed
 fig.update_layout(
     height=40 * n_projects + 200,        # 40px per project row + padding
