@@ -7,6 +7,7 @@ import datetime as dt
 import smartsheet
 import matplotlib.dates as mdates
 from dateutil.relativedelta import relativedelta
+import io
 
 # --- Smartsheet Setup ---
 SMartsheet_TOKEN = st.secrets["SMartsheet_TOKEN"]
@@ -30,7 +31,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Full visual zoom retained with actual horizontal scrolling.")
+st.caption("Now truly scrollable with full-size zoomed-in display.")
 
 df = fetch_smartsheet_data()
 
@@ -59,19 +60,17 @@ df["Y Label"] = df.apply(
 df["Project # Sort"] = df["Project #"].astype(str)
 df = df.sort_values(by="Project # Sort", ascending=True).reset_index(drop=True)
 
-# --- Colors ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
 colors = ['#8C1D40', '#FFC627', '#5C6670', '#78BE20']
 phase_colors = dict(zip(phases, colors))
 
-# --- Time Window ---
 earliest = df[["Programming Start Date", "Schematic Design Start Date", "Design Development Start Date", "Construction Document Start Date"]].min().min()
 latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plot ---
-fig, ax = plt.subplots(figsize=(80, len(df) * 0.8), dpi=100)
+# --- Plotting (high-resolution, extra wide)
+fig, ax = plt.subplots(figsize=(80, len(df) * 0.8), dpi=200)
 today = dt.datetime.today().date()
 
 for y in range(len(df)):
@@ -109,32 +108,30 @@ ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon,
 
 ax.set_xlim(x_min, x_max)
 ax.set_yticks(range(len(df)))
-ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize=16)
+ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize=20)
 ax.invert_yaxis()
-ax.tick_params(labelsize=14)
+ax.tick_params(labelsize=18)
 
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
 
-ax.set_xlabel("Date", fontsize=14)
-ax.set_title("Project Design Phases Timeline", fontsize=20, color=asu_maroon)
+ax.set_xlabel("Date", fontsize=18)
+ax.set_title("Project Design Phases Timeline", fontsize=26, color=asu_maroon)
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
 
 legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
 legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
-ax.legend(handles=legend_elements, loc="upper right", fontsize=12)
+ax.legend(handles=legend_elements, loc="upper right", fontsize=16)
 
 plt.tight_layout()
 
-# --- Scrollable container (no scale down)
-with st.container():
-    st.markdown("""
-        <div style='overflow-x: auto; width: 100%;'>
-            <div style='width: 5000px;'>
-    """, unsafe_allow_html=True)
-    st.pyplot(fig, use_container_width=False)
-    st.markdown("</div></div>", unsafe_allow_html=True)
+# --- Save figure and embed with horizontal scroll ---
+buf = io.BytesIO()
+plt.savefig(buf, format="png", bbox_inches="tight")
+st.markdown("<div style='overflow-x: scroll; width: 100%;'><img src='data:image/png;base64," +
+            st.image(buf, use_column_width=False, output_format="auto").data.decode('utf-8') +
+            "'></div>", unsafe_allow_html=True)
 
 # --- Add Project Button ---
 st.markdown("---")
