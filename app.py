@@ -279,6 +279,29 @@ fig.add_vline(
 # Force initial dragmode = pan
 fig.update_layout(dragmode="pan")
 
+# Customize modebar appearance: always visible, larger icons (via increased scale), and ASU maroon
+fig.update_layout(
+    modebar=dict(
+        bgcolor="#8C1D40",          # ASU maroon background
+        activecolor="#FFFFFF",      # White for active icon
+        color="#FFFFFF"             # White for icons
+    )
+)
+
+# You can override the default button scale via the `config` parameter below:
+config = {
+    "displayModeBar": True, 
+    "displaylogo": False,
+    "modeBarButtonsToRemove": [], 
+    "modeBarButtonsToAdd": [],
+    "modeBarButtons": [
+        ["pan2d", "zoom2d", "zoomIn2d", "zoomOut2d", "resetScale2d", "hoverClosestCartesian"]
+    ],
+    "watermark": False,
+    # Increase icon size in modebar
+    "modeBarButtonSize": 26
+}
+
 # Layout adjustments
 row_height = 40
 title_font = 26
@@ -318,8 +341,8 @@ fig.update_layout(
     )
 )
 
-# Render the interactive chart
-st.plotly_chart(fig, use_container_width=True)
+# Render the interactive chart with custom modebar settings
+st.plotly_chart(fig, use_container_width=True, config=config)
 
 # “Add New Project” Button
 st.markdown("---")
