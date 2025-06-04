@@ -30,7 +30,7 @@ def fetch_smartsheet_data():
 # --- App UI ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
-st.caption("Now with horizontal scrolling at full zoom (no zoom out).")
+st.caption("Full visual zoom retained with actual horizontal scrolling.")
 
 df = fetch_smartsheet_data()
 
@@ -48,7 +48,6 @@ df['Schematic Design End'] = df["Design Development Start Date"]
 df['Design Development End'] = df["Construction Document Start Date"]
 df['Construction Document End'] = df["Permit Set Delivery Date"]
 
-# --- Combine labels: "Project Name (Project #)" without decimals ---
 df["Y Label"] = df.apply(
     lambda row: f"{row['Project Name']} ({int(row['Project #'])})"
     if pd.notnull(row["Project #"]) and str(row["Project #"]).replace('.', '', 1).isdigit()
@@ -57,30 +56,27 @@ df["Y Label"] = df.apply(
     axis=1
 )
 
-# --- Sort by Project # as string ---
 df["Project # Sort"] = df["Project #"].astype(str)
 df = df.sort_values(by="Project # Sort", ascending=True).reset_index(drop=True)
 
-# --- ASU Brand Colors ---
+# --- Colors ---
 phases = ['Programming', 'Schematic Design', 'Design Development', 'Construction Documents']
 colors = ['#8C1D40', '#FFC627', '#5C6670', '#78BE20']
 phase_colors = dict(zip(phases, colors))
 
-# --- Timeline window ---
+# --- Time Window ---
 earliest = df[["Programming Start Date", "Schematic Design Start Date", "Design Development Start Date", "Construction Document Start Date"]].min().min()
 latest = df[["Permit Set Delivery Date"]].max().max()
 x_min = earliest - relativedelta(months=1)
 x_max = latest + relativedelta(months=5)
 
-# --- Plotting ---
-fig, ax = plt.subplots(figsize=(32, len(df) * 0.8), dpi=120)
+# --- Plot ---
+fig, ax = plt.subplots(figsize=(80, len(df) * 0.8), dpi=100)
 today = dt.datetime.today().date()
 
-# --- Horizontal guide lines ---
 for y in range(len(df)):
     ax.axhline(y=y, color='lightgrey', linestyle='--', linewidth=0.5, zorder=0, alpha=0.2)
 
-# --- Bars ---
 for i, row in df.iterrows():
     y_pos = i
     starts = [
@@ -103,26 +99,20 @@ for i, row in df.iterrows():
                 height=0.6
             )
 
-# --- Alternating Year Backgrounds ---
 years = range(x_min.year - 1, x_max.year + 1)
 for year in years:
     if year % 2 == 1:
-        start = dt.datetime(year, 1, 1)
-        end = dt.datetime(year + 1, 1, 1)
-        ax.axvspan(start, end, color='grey', alpha=0.1, zorder=0)
+        ax.axvspan(dt.datetime(year, 1, 1), dt.datetime(year + 1, 1, 1), color='grey', alpha=0.1, zorder=0)
 
-# --- Today Line ---
 asu_maroon = '#8C1D40'
 ax.axvline(dt.datetime.combine(today, dt.datetime.min.time()), color=asu_maroon, linewidth=2, zorder=4)
 
-# --- Configure Axes ---
 ax.set_xlim(x_min, x_max)
 ax.set_yticks(range(len(df)))
 ax.set_yticklabels(df["Y Label"].fillna("Unnamed Project"), ha='right', fontsize=16)
 ax.invert_yaxis()
 ax.tick_params(labelsize=14)
 
-# --- X-axis: full monthly ticks
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
 fig.autofmt_xdate(rotation=45)
@@ -131,20 +121,20 @@ ax.set_xlabel("Date", fontsize=14)
 ax.set_title("Project Design Phases Timeline", fontsize=20, color=asu_maroon)
 ax.grid(True, axis='x', linestyle='--', alpha=0.5)
 
-# --- Legend ---
 legend_elements = [Patch(facecolor=phase_colors[phase], label=phase) for phase in phases]
 legend_elements.append(Line2D([0], [0], color=asu_maroon, lw=2, label='Today'))
 ax.legend(handles=legend_elements, loc="upper right", fontsize=12)
 
 plt.tight_layout()
 
-# --- Force scrollable width while preserving zoom
+# --- Scrollable container (no scale down)
 with st.container():
     st.markdown("""
-        <div style='width:3000px; overflow-x: auto;'>
+        <div style='overflow-x: auto; width: 100%;'>
+            <div style='width: 5000px;'>
     """, unsafe_allow_html=True)
     st.pyplot(fig, use_container_width=False)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 # --- Add Project Button ---
 st.markdown("---")
