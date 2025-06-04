@@ -39,9 +39,9 @@ for fld in [
 ]:
     df[fld] = pd.to_datetime(df[fld], errors="coerce")
 
-# Ensure “Design Manager Name” exists
-if "Design Manager Name" not in df.columns:
-    st.error("Column 'Design Manager Name' not found in your Smartsheet data.")
+# Ensure “Design Manager Name” and “Project #” exist
+if "Design Manager Name" not in df.columns or "Project #" not in df.columns:
+    st.error("Columns 'Design Manager Name' and/or 'Project #' not found in your Smartsheet data.")
     st.stop()
 
 # Sidebar: Search & Sort Controls
@@ -50,16 +50,21 @@ st.sidebar.header("🔍 Search & Sort")
 # 1) Search by Project Name (substring, case-insensitive)
 search_project_name = st.sidebar.text_input("Search Project Name", value="")
 
-# 2) Search by Project Number (substring)
+# 2) Search by Project Number (substring or full numeric)
 search_project_number = st.sidebar.text_input("Search Project Number", value="")
 
 # 3) Search by Design Manager (substring, case-insensitive)
 search_design_manager = st.sidebar.text_input("Search Design Manager", value="")
 
-# 4) Sort Order
+# 4) Sort Order (added "Project Number")
 sort_option = st.sidebar.selectbox(
     "Sort Projects By",
-    options=["Design Manager", "Project Name", "Programming Start Date"]
+    options=[
+        "Design Manager",
+        "Project Name",
+        "Programming Start Date",
+        "Project Number"
+    ]
 )
 
 # --- Apply Filters ---
@@ -85,18 +90,32 @@ if search_design_manager.strip():
 
 # --- Apply Sort Order ---
 if sort_option == "Design Manager":
-    df_filtered["Project # Sort"] = df_filtered["Project #"].astype(str)
+    # Sort by manager A→Z, then by project name A→Z
     df_filtered = df_filtered.sort_values(
-        by=["Design Manager Name", "Project # Sort"], ascending=[True, True]
+        by=["Design Manager Name", "Project Name"],
+        ascending=[True, True]
     ).reset_index(drop=True)
+
 elif sort_option == "Project Name":
+    # Sort by project name A→Z
     df_filtered = df_filtered.sort_values(
-        by=["Project Name", "Project #"], ascending=[True, True]
+        by=["Project Name"],
+        ascending=True
     ).reset_index(drop=True)
-else:  # "Programming Start Date"
+
+elif sort_option == "Programming Start Date":
+    # Sort by Programming Start Date (earliest first)
     df_filtered = df_filtered.sort_values(
         by=["Programming Start Date"], ascending=True
     ).reset_index(drop=True)
+
+else:  # "Project Number"
+    # Convert Project # to numeric when possible; NaNs go to bottom
+    df_filtered["Project # Numeric"] = pd.to_numeric(df_filtered["Project #"], errors="coerce")
+    df_filtered = df_filtered.sort_values(
+        by=["Project # Numeric"], ascending=True
+    ).reset_index(drop=True)
+    df_filtered.drop(columns=["Project # Numeric"], inplace=True)
 
 # Build a “long” DataFrame for Plotly’s timeline: one row per Project‐Phase
 records = []
