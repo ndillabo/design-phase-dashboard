@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import datetime as dt                  # ← Make sure to import dt here
+import datetime as dt
 import smartsheet
 
 # --- Smartsheet Setup ---
@@ -17,7 +17,6 @@ def fetch_smartsheet_data():
         row_dict = {}
         for cell in row.cells:
             if cell.column_id in col_map.values():
-                # Find the column title that matches this cell
                 title = next(k for k, v in col_map.items() if v == cell.column_id)
                 row_dict[title] = cell.value
         data.append(row_dict)
@@ -39,14 +38,13 @@ for fld in [
 # Build a “long” DataFrame for Plotly’s timeline
 records = []
 for _, row in df.iterrows():
-    pname = (
-        f"{row['Project Name']} ({int(row['Project #'])})"
-        if pd.notnull(row["Project #"]) and str(row["Project #"]).replace(".", "", 1).isdigit()
-        else f"{row['Project Name']} ({row['Project #']})"
-        if pd.notnull(row["Project #"])
-        else row["Project Name"]
-    )
-    # Define each phase with its start & end
+    if pd.notnull(row.get("Project #")) and str(row["Project #"]).replace(".", "", 1).isdigit():
+        pname = f"{row['Project Name']} ({int(row['Project #'])})"
+    elif pd.notnull(row.get("Project #")):
+        pname = f"{row['Project Name']} ({row['Project #']})"
+    else:
+        pname = row["Project Name"]
+
     phases = [
         ("Programming", row["Programming Start Date"], row["Schematic Design Start Date"]),
         ("Schematic Design", row["Schematic Design Start Date"], row["Design Development Start Date"]),
@@ -82,36 +80,33 @@ fig = px.timeline(
     color_discrete_map=colors,
 )
 
-# Plotly inverts the y-axis by default (so that the first row appears at the bottom).
-# To keep “earliest project” at the top, we reverse the order:
+# Reverse y-axis so first project appears at the top
 fig.update_yaxes(autorange="reversed")
 
-# Add a “Today” vertical line
+# Add a “Today” vertical line (no annotation_position to avoid TypeError)
 today = pd.to_datetime(dt.date.today())
 fig.add_vline(
     x=today,
     line_color="#8C1D40",
-    line_width=3,
-    annotation_text="Today",
-    annotation_position="top right",
+    line_width=3
 )
 
 # Format X-axis: monthly ticks + rotated labels
 fig.update_layout(
-    height=40 * len(df) + 200,      # 40px per project row + extra padding
+    height=40 * len(df) + 200,      # 40px per project row + padding
     title_text="Project Design Phases Timeline",
     title_font_size=26,
     legend_title_text="Phase",
     xaxis=dict(
         tickformat="%b %Y",
-        dtick="M1",                 # one‐month interval
+        dtick="M1",
         tickangle=45,
         tickfont=dict(size=14),
     ),
-    margin=dict(l=300, r=50, t=80, b=80),   # 300px left margin to show long project names
+    margin=dict(l=300, r=50, t=80, b=80),   # 300px left margin for long names
 )
 
-# Enlarge the legend font
+# Enlarge the legend font and place it at the top‐right
 fig.update_traces(marker_line_width=1)
 fig.update_layout(
     legend=dict(
