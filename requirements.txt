@@ -3,3 +3,4 @@ pandas
 matplotlib
 smartsheet-python-sdk
 python-dateutil
+plotly==6.1.1
