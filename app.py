@@ -190,8 +190,8 @@ fig.update_layout(
 config = {
     "displayModeBar": True,
     "displaylogo": False,
+    "modeBarButtonsToRemove": ["select2d", "lasso2d"],
     "modeBarButtonsToAdd": ["toggleFullScreen"],
-    "modeBarButtonsToRemove": [],
     "modeBarButtonSize": 26
 }
 
