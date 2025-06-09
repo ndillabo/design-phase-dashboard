@@ -163,13 +163,28 @@ fig = px.timeline(long_df, x_start="Start", x_end="Finish", y="Project",
 fig.update_yaxes(autorange="reversed")
 
 # alternating shading
-shapes=[]
-for yr in range(sy, ey+1):
-    if yr%2==0:
-        shapes.append(dict(type="rect",xref="x",yref="paper",
-            x0=dt.datetime(yr,1,1), x1=dt.datetime(yr+1,1,1),
-            y0=0, y1=1, fillcolor="lightgray", opacity=0.2, layer="below", line_width=0))
+# In your Plotly layout update (replace this block):
+
+shapes = []
+for yr in range(sy, ey + 1):
+    if yr % 2 == 0:
+        shapes.append(
+            dict(
+                type="rect",
+                xref="x",
+                yref="paper",
+                x0=dt.datetime(yr, 1, 1),
+                x1=dt.datetime(yr + 1, 1, 1),
+                y0=0,
+                y1=1,
+                fillcolor="gray",         # darker than 'lightgray'
+                opacity=0.3,              # increase contrast slightly
+                layer="below",
+                line_width=0,
+            )
+        )
 fig.update_layout(shapes=shapes)
+
 
 # today line
 fig.add_vline(x=today, line_color=pal["Programming"], line_width=3)
