@@ -4,7 +4,6 @@ import plotly.express as px
 import datetime as dt
 import smartsheet
 
-# --- Streamlit Page Config ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
 st.caption("Use the sidebar to search, sort, and toggle various features.")
@@ -40,12 +39,10 @@ for fld in [
 ]:
     df[fld] = pd.to_datetime(df[fld], errors="coerce")
 
-# Verify necessary columns exist
-required_columns = ["Design Manager Name", "Project #", "Project Name"]
-for col in required_columns:
-    if col not in df.columns:
-        st.error(f"Column '{col}' not found in your Smartsheet data.")
-        st.stop()
+# Verify necessary columns
+if "Design Manager Name" not in df.columns or "Project #" not in df.columns:
+    st.error("Columns 'Design Manager Name' and/or 'Project #' not found in your Smartsheet data.")
+    st.stop()
 
 # --- Sidebar: Search, Sort, and Options ---
 st.sidebar.header("🔍 Search & Sort")
@@ -67,41 +64,37 @@ sort_option = st.sidebar.selectbox(
 st.sidebar.markdown("---")
 st.sidebar.header("⚙️ Additional Options")
 
+# Show Only Active Today
 show_active = st.sidebar.checkbox("Show Only Active Today", value=False)
 
+# Color Theme
 color_theme = st.sidebar.selectbox(
     "Color Theme",
     options=["ASU Brand", "High Contrast"]
 )
 
+# Jump to Project placeholder
 jump_to = "-- None --"
 
-# --- Apply Filters to DataFrame ---
+# --- Apply Filters to df ---
 df_filtered = df.copy()
 
 if search_project_name.strip():
-    df_filtered = df_filtered[
-        df_filtered["Project Name"]
-        .str.contains(search_project_name.strip(), case=False, na=False)
-    ]
+    df_filtered = df_filtered[df_filtered["Project Name"]
+                              .str.contains(search_project_name.strip(), case=False, na=False)]
 
 if search_project_number.strip():
-    df_filtered = df_filtered[
-        df_filtered["Project #"]
-        .astype(str)
-        .str.contains(search_project_number.strip(), na=False)
-    ]
+    df_filtered = df_filtered[df_filtered["Project #"]
+                              .astype(str)
+                              .str.contains(search_project_number.strip(), na=False)]
 
 if search_design_manager.strip():
-    df_filtered = df_filtered[
-        df_filtered["Design Manager Name"]
-        .str.contains(search_design_manager.strip(), case=False, na=False)
-    ]
+    df_filtered = df_filtered[df_filtered["Design Manager Name"]
+                              .str.contains(search_design_manager.strip(), case=False, na=False)]
 
-# Build “Active Today” flag
+# Build “Active Today” helper
 today = pd.to_datetime(dt.date.today())
 df_filtered["Active Today"] = False
-
 for idx, row in df_filtered.iterrows():
     phases = [
         ("Programming", row["Programming Start Date"], row["Schematic Design Start Date"]),
@@ -117,7 +110,7 @@ for idx, row in df_filtered.iterrows():
 if show_active:
     df_filtered = df_filtered[df_filtered["Active Today"]]
 
-# --- Apply Sorting ---
+# --- Apply Sort Order ---
 if sort_option == "Design Manager":
     df_filtered = df_filtered.sort_values(
         by=["Design Manager Name", "Project Name"],
@@ -126,7 +119,8 @@ if sort_option == "Design Manager":
 
 elif sort_option == "Project Name":
     df_filtered = df_filtered.sort_values(
-        by=["Project Name"], ascending=True
+        by=["Project Name"],
+        ascending=True
     ).reset_index(drop=True)
 
 elif sort_option == "Programming Start Date":
@@ -141,7 +135,7 @@ else:  # "Project Number"
     ).reset_index(drop=True)
     df_filtered.drop(columns=["Project # Numeric"], inplace=True)
 
-# --- Build “Long” DataFrame for Plotly ---
+# --- Build “Long” DataFrame for Plotly Timeline ---
 records = []
 for _, row in df_filtered.iterrows():
     if pd.notnull(row["Project #"]) and str(row["Project #"]).replace(".", "", 1).isdigit():
@@ -173,17 +167,18 @@ if long_df.empty:
     st.info("No data matches your search or filter criteria.")
     st.stop()
 
-# Build jump-to list
+# Now build jump-to list
 distinct_projects = long_df["Project"].unique().tolist()
 jump_to = st.sidebar.selectbox("Jump to Project", options=["-- None --"] + distinct_projects)
 
+# If user selected a project, reorder so that project bars come first
 if jump_to != "-- None --":
     remaining = [p for p in distinct_projects if p != jump_to]
     ordered = [jump_to] + remaining
     long_df["Project"] = pd.Categorical(long_df["Project"], categories=ordered, ordered=True)
     long_df = long_df.sort_values(by="Project").reset_index(drop=True)
 
-# --- Summary / Metrics ---
+# --- Summary / Reporting Section ---
 active_projects = df_filtered[df_filtered["Active Today"]]["Project Name"].nunique()
 phase_counts = {
     "Programming": 0,
@@ -211,7 +206,7 @@ col4.metric("In Schematic", phase_counts["Schematic Design"])
 col5.metric("In Design Development", phase_counts["Design Development"])
 col6.metric("In CD Phase", phase_counts["Construction Documents"])
 
-# --- Determine Plot Extents & Year Shading ---
+# --- Determine plot dimensions and shading ---
 distinct_projects = long_df["Project"].unique().tolist()
 n_projects = len(distinct_projects)
 overall_min = long_df["Start"].min()
@@ -219,6 +214,7 @@ overall_max = long_df["Finish"].max()
 start_year = overall_min.year
 end_year = overall_max.year
 
+# Color palette selection
 if color_theme == "High Contrast":
     colors = {
         "Programming": "#004D40",
@@ -235,7 +231,7 @@ else:  # ASU Brand
     }
 
 # --- Build Plotly Timeline ---
-hover_fmt = {"Start": "|%b %d, %Y", "Finish": "|%b %d, %Y"}
+hover_fmt = {"Start": "|%b %d, %Y", "Finish": "|%b %d, %Y"}  # tooltip date formatting
 fig = px.timeline(
     long_df,
     x_start="Start",
@@ -246,9 +242,10 @@ fig = px.timeline(
     hover_data=hover_fmt
 )
 
+# Reverse y-axis so earliest project is at the top
 fig.update_yaxes(autorange="reversed")
 
-# Add alternating even-year shading
+# Alternating even-year shading behind bars
 shapes = []
 for year in range(start_year, end_year + 1):
     if year % 2 == 0:
@@ -271,31 +268,31 @@ for year in range(start_year, end_year + 1):
         )
 fig.update_layout(shapes=shapes)
 
-# Add “Today” vertical line
+# “Today” vertical line
 today = pd.to_datetime(dt.date.today())
 fig.add_vline(
     x=today,
-    line_color=colors["Programming"],
+    line_color=colors["Programming"],  # ASU maroon or high-contrast
     line_width=3
 )
 
-# Force dragmode to “pan”
+# Force initial dragmode = pan
 fig.update_layout(dragmode="pan")
 
-# Configuration for modebar: include full-screen button and keep always visible
+# Restore default modebar styling, but keep it always visible
 config = {
     "displayModeBar": True,
     "displaylogo": False,
     "modeBarButtonsToRemove": [],
     "modeBarButtonsToAdd": [],
     "modeBarButtons": [
-        ["pan2d", "zoom2d", "zoomIn2d", "zoomOut2d", "autoScale2d", "hoverClosestCartesian", "toggleSpikelines", "toggleFullscreen"]
+        ["pan2d", "zoom2d", "zoomIn2d", "zoomOut2d", "resetScale2d", "hoverClosestCartesian"]
     ],
     "watermark": False,
     "modeBarButtonSize": 26
 }
 
-# Layout tweaks
+# Layout adjustments
 row_height = 40
 title_font = 26
 tick_font = 14
@@ -321,6 +318,7 @@ fig.update_layout(
     margin=dict(l=margin_l, r=50, t=80, b=80),
 )
 
+# Enlarge legend font
 fig.update_traces(marker_line_width=1)
 fig.update_layout(
     legend=dict(
@@ -333,10 +331,10 @@ fig.update_layout(
     )
 )
 
-# Render the interactive chart with full-screen button visible
+# Render the interactive chart with default modebar always visible
 st.plotly_chart(fig, use_container_width=True, config=config)
 
-# --- Add New Project Link ---
+# “Add New Project” Button
 st.markdown("---")
 st.markdown("### Want to add a new project to the dashboard?")
 st.markdown(
