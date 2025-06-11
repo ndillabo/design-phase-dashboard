@@ -160,7 +160,7 @@ pal = {
     "ASU Brand": {
         "Programming": "#8C1D40",
         "Schematic Design": "#FFC627",
-        "Design Development": "#5C6670",
+        "Design Development": "#FF7F32",
         "Construction Documents": "#78BE20",
         "Construction Period": "#747474"
     },
