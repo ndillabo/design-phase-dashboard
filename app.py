@@ -4,7 +4,6 @@ import plotly.express as px
 import datetime as dt
 import smartsheet
 
-# --- Streamlit page config ---
 st.set_page_config(layout="wide")
 st.title("📊 Design Phase Dashboard")
 st.caption("Use the sidebar to search, sort, and toggle various features.")
@@ -32,12 +31,11 @@ df = fetch_smartsheet_data()
 date_cols = [
     "Programming Start Date","Schematic Design Start Date",
     "Design Development Start Date","Construction Document Start Date",
-    "Permit Set Delivery Date"
+    "Permit Set Delivery Date", "Construction Start Date", "Construction Stop Date"
 ]
 for c in date_cols:
     df[c] = pd.to_datetime(df[c], errors="coerce")
 
-# Must have these columns
 if "Design Manager Name" not in df.columns or "Project #" not in df.columns:
     st.error("Missing column 'Design Manager Name' or 'Project #' in Smartsheet.")
     st.stop()
@@ -56,7 +54,7 @@ st.sidebar.markdown("---")
 st.sidebar.header("⚙️ Options")
 show_active  = st.sidebar.checkbox("Show Only Active Today", value=False)
 color_theme  = st.sidebar.selectbox("Color Theme", ["ASU Brand","High Contrast"])
-jump_to      = "-- None --"  # placeholder
+jump_to      = "-- None --"
 
 # --- Filter df ---
 df_f = df.copy()
@@ -102,21 +100,27 @@ for _, r in df_f.iterrows():
         label = f"{r['Project Name']} ({int(num)}) — {r['Design Manager Name']}"
     else:
         label = f"{r['Project Name']} ({num}) — {r['Design Manager Name']}"
-    for phase, s_col, e_col in [
-        ("Programming","Programming Start Date","Schematic Design Start Date"),
-        ("Schematic Design","Schematic Design Start Date","Design Development Start Date"),
-        ("Design Development","Design Development Start Date","Construction Document Start Date"),
-        ("Construction Documents","Construction Document Start Date","Permit Set Delivery Date")
-    ]:
-        s = r[s_col]; e = r[e_col]
-        if pd.notnull(s) and pd.notnull(e):
-            records.append({"Project": label, "Phase": phase, "Start": s, "Finish": e})
+    phases = [
+        ("Programming", r["Programming Start Date"], r["Schematic Design Start Date"]),
+        ("Schematic Design", r["Schematic Design Start Date"], r["Design Development Start Date"]),
+        ("Design Development", r["Design Development Start Date"], r["Construction Document Start Date"]),
+        ("Construction Documents", r["Construction Document Start Date"], r["Permit Set Delivery Date"]),
+        ("Construction Period", r["Construction Start Date"], r["Construction Stop Date"]),
+    ]
+    for phase_name, start_dt, end_dt in phases:
+        if pd.notnull(start_dt) and pd.notnull(end_dt):
+            records.append({
+                "Project": label,
+                "Phase": phase_name,
+                "Start": start_dt,
+                "Finish": end_dt
+            })
 long_df = pd.DataFrame(records)
 if long_df.empty:
     st.info("No matching data after filters.")
     st.stop()
 
-# ```` Jump to Project
+# --- Jump to Project ---
 projects = long_df["Project"].unique().tolist()
 jump_to = st.sidebar.selectbox("Jump to Project", ["-- None --"] + projects)
 if jump_to != "-- None --":
@@ -148,71 +152,68 @@ c4.metric("In Schematic", phase_ct["Schematic Design"])
 c5.metric("In Design Development", phase_ct["Design Development"])
 c6.metric("In CD Phase", phase_ct["Construction Documents"])
 
-# --- Timeline plot ---
+# --- Timeline chart ---
 sy = long_df["Start"].min().year
 ey = long_df["Finish"].max().year
 
 pal = {
-    "ASU Brand":{"Programming":"#8C1D40","Schematic Design":"#FFC627","Design Development":"#5C6670","Construction Documents":"#78BE20"},
-    "High Contrast":{"Programming":"#004D40","Schematic Design":"#F57F17","Design Development":"#283593","Construction Documents":"#D32F2F"}
+    "ASU Brand": {
+        "Programming": "#8C1D40",
+        "Schematic Design": "#FFC627",
+        "Design Development": "#5C6670",
+        "Construction Documents": "#78BE20",
+        "Construction Period": "#747474"
+    },
+    "High Contrast": {
+        "Programming": "#004D40",
+        "Schematic Design": "#F57F17",
+        "Design Development": "#283593",
+        "Construction Documents": "#D32F2F",
+        "Construction Period": "#747474"
+    }
 }[color_theme]
 
 fig = px.timeline(long_df, x_start="Start", x_end="Finish", y="Project",
                   color="Phase", color_discrete_map=pal,
-                  hover_data={"Start":"|%b %d, %Y","Finish":"|%b %d, %Y"})
+                  hover_data={"Start": "|%b %d, %Y", "Finish": "|%b %d, %Y"})
 fig.update_yaxes(autorange="reversed")
 
-# alternating shading
 shapes = []
 for yr in range(sy, ey + 1):
     if yr % 2 == 0:
         shapes.append(
             dict(
-                type="rect",
-                xref="x",
-                yref="paper",
-                x0=dt.datetime(yr, 1, 1),
-                x1=dt.datetime(yr + 1, 1, 1),
-                y0=0,
-                y1=1,
-                fillcolor="#d3d3d3",   # soft medium-light gray
-                opacity=0.25,          # slightly lighter than before
-                layer="below",
-                line_width=0,
+                type="rect", xref="x", yref="paper",
+                x0=dt.datetime(yr, 1, 1), x1=dt.datetime(yr + 1, 1, 1),
+                y0=0, y1=1, fillcolor="#d3d3d3", opacity=0.25,
+                layer="below", line_width=0,
             )
         )
 fig.update_layout(shapes=shapes)
 
-# today line
 fig.add_vline(x=today, line_color=pal["Programming"], line_width=3)
-fig.update_layout(dragmode="pan")
-
-# layout
-n = len(projects)
 fig.update_layout(
-    height=40*n+200,
+    height=40 * len(projects) + 200,
     title_text="Project Design Phases Timeline", title_font_size=26,
     xaxis=dict(tickformat="%b %Y", dtick="M1", tickangle=45, tickfont_size=14,
                showgrid=True, gridcolor="lightgray"),
     margin=dict(l=300, r=50, t=80, b=80),
-    legend=dict(font_size=16, orientation="h", y=1.02, x=1, xanchor="right")
+    legend=dict(font_size=16, orientation="h", y=1.02, x=1, xanchor="right"),
+    dragmode="pan"
 )
 
-# --- Config: default buttons + fullscreen, always visible ---
 config = {
     "displayModeBar": True,
     "displaylogo": False,
-    "modeBarButtonsToRemove": ["select2d", "lasso2d"],
     "modeBarButtonsToAdd": ["toggleFullScreen"],
     "modeBarButtonSize": 26
 }
 
 st.plotly_chart(fig, use_container_width=True, config=config)
 
-# --- Add New Project link ---
+# --- Add project link ---
 st.markdown("---")
 st.markdown("### Want to add a new project to the dashboard?")
-st.markdown(
-    "[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)",
-    unsafe_allow_html=True
-)
+st.markdown("""
+[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)
+""", unsafe_allow_html=True)
