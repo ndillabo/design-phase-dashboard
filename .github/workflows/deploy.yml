@@ -28,8 +28,12 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Create ZIP package
+      run: |
+        zip -r app.zip .
+
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: CPMGOUAProjectTracker
-        package: .
+        package: app.zip
