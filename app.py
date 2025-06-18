@@ -236,4 +236,4 @@ st.markdown("### Want to add a new project to the dashboard?")
 st.markdown(
     "[📝 Add New Project](https://app.smartsheet.com/b/form/a441de84912b4f27a5f2c59512d70897)",
     unsafe_allow_html=True
-)
+) 
